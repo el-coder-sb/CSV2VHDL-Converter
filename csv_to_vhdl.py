@@ -1,0 +1,190 @@
+#! python3
+# -*- coding: utf-8 -*-
+'''
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+    Dieses Programm ist Freie Software: Sie können es unter den Bedingungen
+    der GNU General Public License, wie von der Free Software Foundation,
+    Version 3 der Lizenz oder (nach Ihrer Wahl) jeder neueren
+    veröffentlichten Version, weiter verteilen und/oder modifizieren.
+
+    Dieses Programm wird in der Hoffnung bereitgestellt, dass es nützlich sein wird, jedoch
+    OHNE JEDE GEWÄHR,; sogar ohne die implizite
+    Gewähr der MARKTFÄHIGKEIT oder EIGNUNG FÜR EINEN BESTIMMTEN ZWECK.
+    Siehe die GNU General Public License für weitere Einzelheiten.
+
+    Sie sollten eine Kopie der GNU General Public License zusammen mit diesem
+    Programm erhalten haben. Wenn nicht, siehe <https://www.gnu.org/licenses/>.
+
+Created on 31.08.2020
+
+This python-script reads csv-data (e.g. taken from a oscilloscope measurement) and generates vhdl code, to be used in a simulation.
+
+@author: el-coder-sb
+'''
+
+import csv
+import os
+
+HYSTERESE_FACTOR = 0.35  # HYSTERESE_FACTOR * LogicLevel gives Negative-going level; (1 - HYSTERESE_FACTOR) * LogicLevel gives positive-going level;
+RESOLUTION = "ns"  # legal values: "ns", "ps"
+OUT_FILENAME = 'my_do_file.vhd'  # legal extensions: ".do", ".vhd" -> vhdl is recommended due to much shorter simulation time
+
+
+def get_header_info(header_str, device="RTB2004"):
+    if device == "RTB2004":  # Rohde&Schwarz
+        pass  # TODO
+
+
+def readCsv(fileName, delimiterArg=',', maxRow=None):
+
+    # matrix = [[] for i in range(numCol)] # for 2D list-array, matrix = [row][col], 0-based-index!
+    matrix = []
+
+    with open(fileName, 'r') as csvfile:
+        filereader = csv.reader(csvfile, delimiter=delimiterArg, quotechar='|')
+        header = next(filereader)
+        for row_num, row in enumerate(filereader):
+            print(row)
+            if row_num == 0:
+                time_offset = float(row[0])
+            matrix.append([])
+            for col_str in row:
+                matrix[row_num].append(float(col_str))
+            if row_num == maxRow:
+                break
+    # print(f"Time_offset {time_offset}")
+    return header, time_offset, matrix  # 0-based-index, matrix[row][col]
+
+
+def get_edges(time_offset, csvMatrix, logic_family=3.3):
+    ''' Find digital level transitions in input data '''
+    last_level = 0 if csvMatrix[0][1] < 0.5 * logic_family else 1
+    level_matrix = [[0.0, last_level]]
+
+    for time_logiclevel_tuple in csvMatrix:
+        # checke Spannungslevel
+        voltage_fl = time_logiclevel_tuple[1]
+
+        # benutze Hysterese
+        if last_level == 0 and (voltage_fl > (logic_family * (1 - HYSTERESE_FACTOR))):
+                last_level = 1
+                timestamp = time_logiclevel_tuple[0] + abs(time_offset)
+                level_matrix.append([timestamp, last_level])
+        elif last_level == 1 and (voltage_fl < (logic_family * HYSTERESE_FACTOR)):
+                last_level = 0
+                timestamp = time_logiclevel_tuple[0] + abs(time_offset)
+                level_matrix.append([timestamp, last_level])
+
+    return level_matrix
+
+
+def write_do_file(path, all_ch_level_matrix, signal_names_list) -> None:
+    TIMESTAMP_IDX = 0
+    last_timestamp = 0
+    num_timestamps_per_sig_list = [len(all_ch_level_matrix[i]) for i in range(len(all_ch_level_matrix))]  # [5, 12, 210]
+    print(f"num_timestamps_per_sig_list {num_timestamps_per_sig_list}")
+    filename, file_extension = os.path.splitext(OUT_FILENAME)
+
+    with open(os.path.join(path, OUT_FILENAME), 'w') as dofile:
+        if file_extension == '.do':
+            str_run_cmd = (os.path.dirname(os.path.realpath(__file__)) + os.sep + OUT_FILENAME).replace('\\', '/')  # ModelSim needs '/'
+            dofile.write(f'#do {str_run_cmd}\n')
+            dofile.write('restart -f\n\n')
+        elif file_extension == '.vhd':
+            dofile.write('\t--\n')
+            dofile.write('\t-- Measurement data starts here\n')
+            dofile.write('\t--\n')
+
+        nxt_timestamp_per_sig_idx = [0 for i in range(len(signal_names_list))]  # [0, 0, 0]
+
+        while nxt_timestamp_per_sig_idx != []:
+            nxt_timestamp_list = [all_ch_level_matrix[num][nxt_timestamp_per_sig_idx[num]][TIMESTAMP_IDX] for num in range(len(nxt_timestamp_per_sig_idx))]  # [0.0, 2.76e-07, 1.968e-07]
+            print(f"nxt_timestamp_list {nxt_timestamp_list}")  # [0.0, 2.76e-07, 1.968e-07]
+            signal_nxt_timestamp_min_val_idx = min(range(len(nxt_timestamp_list)), key=nxt_timestamp_list.__getitem__)  # signal_nxt_timestamp_min_val_idx = signal with the next min timestamp
+            print(f" signal_nxt_timestamp_min_val_idx {signal_nxt_timestamp_min_val_idx}")
+            data_tuple = all_ch_level_matrix[signal_nxt_timestamp_min_val_idx][nxt_timestamp_per_sig_idx[signal_nxt_timestamp_min_val_idx]]
+
+            print(data_tuple)
+            print(last_timestamp)
+            if file_extension == '.do':
+                if RESOLUTION == "ns":
+                    dofile.write(f"run {round((data_tuple[TIMESTAMP_IDX]-last_timestamp)*1000000000,0)}\n")  # convert diff to ns and round to ns
+                elif RESOLUTION == "ps":
+                    dofile.write(f"run {round((data_tuple[TIMESTAMP_IDX]-last_timestamp)*1000000000,3)}\n")  # convert diff to ns and round to ps
+                else:
+                    raise ValueError('RESOLUTION has an illegal value.')
+                dofile.write(f"force -freeze {signal_names_list[signal_nxt_timestamp_min_val_idx]} {data_tuple[1]}\n")
+                # -deposit
+                # (optional) Sets the object to the specified <value>. The <value> remains until the object is
+                # forced again,
+            elif file_extension == '.vhd':
+                if RESOLUTION == "ns":
+                    dofile.write(f"\twait for {round((data_tuple[TIMESTAMP_IDX]-last_timestamp)*1000000000,0)} ns;\n")  # convert diff to ns and round to ns
+#                 elif RESOLUTION == "ps":
+#                     dofile.write(f"wait for {round((data_tuple[TIMESTAMP_IDX]-last_timestamp)*1000000000,3)} ns\n")  # convert diff to ns and round to ps
+                else:
+                    raise ValueError('RESOLUTION has an illegal value.')
+                dofile.write(f"\t{signal_names_list[signal_nxt_timestamp_min_val_idx]}\t\t<=\t'{data_tuple[1]}';\n")
+                # -deposit
+            last_timestamp = data_tuple[TIMESTAMP_IDX]
+            nxt_timestamp_per_sig_idx[signal_nxt_timestamp_min_val_idx] += 1
+            if nxt_timestamp_per_sig_idx[signal_nxt_timestamp_min_val_idx] == num_timestamps_per_sig_list[signal_nxt_timestamp_min_val_idx]:
+                del nxt_timestamp_per_sig_idx[signal_nxt_timestamp_min_val_idx]
+                del all_ch_level_matrix[signal_nxt_timestamp_min_val_idx]
+                del num_timestamps_per_sig_list[signal_nxt_timestamp_min_val_idx]
+            print(f"nxt_timestamp_per_sig_idx {nxt_timestamp_per_sig_idx}")
+    print(f"\n{OUT_FILENAME} was written successfully!")
+
+
+def get_and_prepare_csv_data(csv_filepaths, logic_family_list, maxDataRows=None):
+    ''' Read csv file(s) and create Matrix/Table with it '''
+    all_ch_level_matrix = []
+
+    for file_num, csv_filepath in enumerate(csv_filepaths):
+        header_str, time_offset, csvMatrix = readCsv(csv_filepath, ',', maxDataRows)
+        print(f"Num_Vals: {len(csvMatrix)}")
+        get_header_info(header_str)  # ZUTUN
+        level_matrix = get_edges(time_offset, csvMatrix, logic_family_list[file_num])
+        print(level_matrix)
+
+        all_ch_level_matrix.append(level_matrix)
+
+    return all_ch_level_matrix
+
+
+def run_csv_to_do_main(input_dict_list, maxDataRows):
+    all_ch_level_matrix = get_and_prepare_csv_data([dict_elem['filepath'] for dict_elem in input_dict_list], [dict_elem['logic_family'] for dict_elem in input_dict_list], maxDataRows)
+    # all_ch_level_matrix looks like:  [[[0.0, 1], [9.896e-07, 0]], [[2.672e-07, 1],..]] ; all_ch_level_matrix(data_set_file1(timestamp0, logic_level0), ...)
+    # print(f" all_ch_level_matrix {all_ch_level_matrix}")
+    signal_names = [dict_elem['signal_name'] for dict_elem in input_dict_list]
+    write_do_file(os.path.dirname(input_dict_list[0]['filepath']), all_ch_level_matrix, signal_names)
+
+
+if __name__ == '__main__':
+    TEST = False
+    maxDataRows = 100000
+
+    if TEST is True:
+        input_dict1 = {'filepath': r'C:\CSV_to_VHDL\RTB2004_CHAN1.CSV', 'signal_name': 'spi_miso_sl_i_s', 'logic_family': 3.3}  # 'logic_family' in V
+        input_dict2 = {'filepath': r'C:\CSV_to_VHDL\RTB2004_CHAN3.CSV', 'signal_name': 'spi_mosi_sl_i_s', 'logic_family': 3.3}
+        input_dict3 = {'filepath': r'C:\CSV_to_VHDL\RTB2004_CHAN4.CSV', 'signal_name': 'spi_clk_sl_i_s', 'logic_family': 3.3}
+        input_dict_list = [input_dict1, input_dict2, input_dict3]
+    else:
+        input_dict1 = {'filepath': r"C:\OszilloskopDaten\RTB2004_CH1_MISO.CSV", 'signal_name': 'spi_miso_sl_i_s', 'logic_family': 3.3}  # 'logic_family' in V
+        input_dict2 = {'filepath': r"C:\OszilloskopDaten\RTB2004_CH3_MOSI.CSV", 'signal_name': 'spi_mosi_sl_i_s', 'logic_family': 3.3}
+        input_dict3 = {'filepath': r"C:\OszilloskopDaten\RTB2004_CH4_CLK.CSV", 'signal_name': 'spi_clk_sl_i_s', 'logic_family': 3.3}
+        input_dict_list = [input_dict1, input_dict2, input_dict3]
+
+    run_csv_to_do_main(input_dict_list, maxDataRows)
