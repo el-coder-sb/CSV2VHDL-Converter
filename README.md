@@ -1,5 +1,5 @@
 # CSV2VHDL-Converter
-Reads csv-data and generates vhdl code, to be used in a simulation.
+Reads csv-data and generates vhdl code (or do file code), to be used in a simulation.
 
 My use case:
 I save measurement data from an oscilloscope in csv format. With this script I convert the data to vhdl code, so I can use it in a simulation tool as input.
