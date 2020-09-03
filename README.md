@@ -8,4 +8,7 @@ I save measurement data from an oscilloscope in csv format. With this script I c
 Python >= 3.6 (tested with 3.8)
 
 # Use
-change parameter in "if __name__ == '__main__':"
+change parameter in
+```
+if __name__ == '__main__':
+```
