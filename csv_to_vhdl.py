@@ -101,6 +101,7 @@ def write_do_file(path, all_ch_level_matrix, signal_names_list, param_dict) -> N
     num_timestamps_per_sig_list = [len(all_ch_level_matrix[i]) for i in range(len(all_ch_level_matrix))]  # [5, 12, 210]
     debug_print(f"num_timestamps_per_sig_list {num_timestamps_per_sig_list}")
     filename, file_extension = os.path.splitext(param_dict["VHD_DO_FILENAME"])
+    simulation_time_ns = 0
 
     with open(os.path.join(path, param_dict["VHD_DO_FILENAME"]), 'w') as dofile:
         if file_extension == '.do':
@@ -123,11 +124,17 @@ def write_do_file(path, all_ch_level_matrix, signal_names_list, param_dict) -> N
 
             debug_print(data_tuple)
             debug_print(last_timestamp)
+            wait_time_ps = round((data_tuple[TIMESTAMP_IDX] - last_timestamp) * 1000000000000, 0)
+            debug_print(f"wait_time_ps real: {wait_time_ps}")
+            if wait_time_ps > (param_dict['MAX_WAIT_TIME_NS'] * 1000):
+                print(f"wait_time_ps is greater than MAX_WAIT_TIME_NS: {wait_time_ps} ps -> will be cutted to {param_dict['MAX_WAIT_TIME_NS']*1000}ps")
+                wait_time_ps = min(wait_time_ps, (param_dict['MAX_WAIT_TIME_NS'] * 1000))
+            debug_print(f"wait_time_ps: {wait_time_ps}")
             if file_extension == '.do':
                 if param_dict["RESOLUTION"] == "ns":
-                    dofile.write(f"run {round((data_tuple[TIMESTAMP_IDX]-last_timestamp)*1000000000,0)}\n")  # convert diff to ns and round to ns
+                    dofile.write(f"run {round(wait_time_ps/1000,0)}\n")  # convert diff to ns and round to ns
                 elif param_dict["RESOLUTION"] == "ps":
-                    dofile.write(f"run {round((data_tuple[TIMESTAMP_IDX]-last_timestamp)*1000000000,3)}\n")  # convert diff to ns and round to ps
+                    dofile.write(f"run {wait_time_ps/1000}\n")  # convert diff to ns and round to ps
                 else:
                     raise ValueError('RESOLUTION has an illegal value.')
                 dofile.write(f"force -freeze {signal_names_list[signal_nxt_timestamp_min_val_idx]} {data_tuple[1]}\n")
@@ -136,19 +143,22 @@ def write_do_file(path, all_ch_level_matrix, signal_names_list, param_dict) -> N
                 # forced again,
             elif file_extension == '.vhd':
                 num_max_digits = int(math.log10(param_dict['MAX_WAIT_TIME_NS'])) + 1  # +1 to round up, ceil does not work for MAX_WAIT_TIME_NS=10,100,1000,...
+
                 if param_dict["RESOLUTION"] == "ns":
-                    wait_time_ns = int(round((data_tuple[TIMESTAMP_IDX] - last_timestamp) * 1000000000, 0))
-                    if wait_time_ns > param_dict['MAX_WAIT_TIME_NS']:
-                        print(f"wait_time_ns is greater than MAX_WAIT_TIME_NS: {wait_time_ns} -> will be cutted to {param_dict['MAX_WAIT_TIME_NS']}")
-                    wait_time_ns = min(wait_time_ns, param_dict['MAX_WAIT_TIME_NS'])
-                    dofile.write(f"\twait for {wait_time_ns: >{num_max_digits}} ns;\t")  # convert diff to ns and round to ns; +2-> because of ".0" in output format
+                    dofile.write(f"\twait for {round(wait_time_ps / 1000, 0): >{num_max_digits}} ns;\t")  # convert diff to ns and round to ns; +2-> because of ".0" in output format
                 elif param_dict["RESOLUTION"] == "ps":
-                    dofile.write(f"\twait for {round((data_tuple[TIMESTAMP_IDX]-last_timestamp)*1000000000,3): >{num_max_digits+4}} ns\t")  # convert diff to ns and round to ps; +4-> ".000"
+                    dofile.write(f"\twait for {wait_time_ps: >{num_max_digits+3}} ps;\t")  # convert diff to ns and round to ps; +4-> ".000"
                 else:
                     raise ValueError('RESOLUTION has an illegal value.')
                 dofile.write(f"\t{signal_names_list[signal_nxt_timestamp_min_val_idx]}\t\t<=\t'{data_tuple[1]}';\n")
+                simulation_time_ns += int(wait_time_ps / 1000)
+                debug_print(f"simulation_time_ns: {simulation_time_ns}")
+                if simulation_time_ns > (param_dict['MAX_SIM_TIME_US'] * 1000):
+                    print(f"BREAK as MAX_SIM_TIME_US is reached.")
+                    break
             last_timestamp = data_tuple[TIMESTAMP_IDX]
             nxt_timestamp_per_sig_idx[signal_nxt_timestamp_min_val_idx] += 1
+            # check if signal has no more transitions
             if nxt_timestamp_per_sig_idx[signal_nxt_timestamp_min_val_idx] == num_timestamps_per_sig_list[signal_nxt_timestamp_min_val_idx]:
                 del nxt_timestamp_per_sig_idx[signal_nxt_timestamp_min_val_idx]
                 del all_ch_level_matrix[signal_nxt_timestamp_min_val_idx]
@@ -164,7 +174,7 @@ def get_and_prepare_csv_data(input_dict_list, param_dict):
     csv_filepaths = [dict_elem['filepath'] for dict_elem in input_dict_list]
 
     for file_num, csv_filepath in enumerate(csv_filepaths):
-        header_str, time_offset, csvMatrix = readCsv(csv_filepath, ',', param_dict["maxDataRows"])
+        header_str, time_offset, csvMatrix = readCsv(csv_filepath, param_dict['CSV_Delimiter'], param_dict["maxDataRows"])
         print(f"Num of rows: {len(csvMatrix)}")
         get_header_info(header_str)  # ZUTUN
         level_matrix = get_edges(time_offset, csvMatrix, input_dict_list[file_num]['logic_family'], input_dict_list[file_num]['POSITIVE_GOING_VOLTAGE'], input_dict_list[file_num]['NEGATIVE_GOING_VOLTAGE'])
@@ -190,9 +200,11 @@ if __name__ == '__main__':
 
     param_dict = {
         'maxDataRows': None,
-        'RESOLUTION': "ps",  # legal values: "ns", "ps"
-        'VHD_DO_FILENAME': "my_do_file.vhd",  # legal extensions: ".do", ".vhd" -> vhdl is recommended due to much shorter simulation time
-        'MAX_WAIT_TIME_NS': 10000  # just to shorten simulation time
+        'RESOLUTION': "ns",  # legal values: "ns", "ps"
+        'VHD_DO_FILENAME': "my_decoded_file.vhd",  # legal extensions: ".do", ".vhd" -> vhdl is recommended due to much shorter simulation time
+        'MAX_WAIT_TIME_NS': 10000,  # just to shorten simulation time
+        'MAX_SIM_TIME_US': 4000,  # if just up to this time limit simulation is wanted, counts time with MAX_WAIT_TIMES_NS and not real IDLE-times
+        'CSV_Delimiter': ';'
     }
 
     if TEST_MODE is True:
