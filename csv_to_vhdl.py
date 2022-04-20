@@ -31,7 +31,7 @@ Created on 31.08.2020
 
 This python-script reads csv-data (e.g. taken from a oscilloscope measurement) and generates vhdl code, to be used in a simulation.
 
-@author: el-coder-sb
+@author: Simon Buhrow
 '''
 
 import csv
