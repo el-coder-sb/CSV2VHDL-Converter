@@ -95,7 +95,7 @@ def get_edges(time_offset, csvMatrix, logic_family=3.3, positive_going_voltage=2
     return level_matrix
 
 
-def write_do_file(path, all_ch_level_matrix, signal_names_list, param_dict) -> None:
+def write_stimuli_file(path, all_ch_level_matrix, signal_names_list, param_dict) -> None:
     TIMESTAMP_IDX = 0
     last_timestamp = 0
     num_timestamps_per_sig_list = [len(all_ch_level_matrix[i]) for i in range(len(all_ch_level_matrix))]  # [5, 12, 210]
@@ -193,7 +193,7 @@ def run_csv_to_do_main(input_dict_list, param_dict):
     # all_ch_level_matrix looks like:  [[[0.0, 1], [9.896e-07, 0]], [[2.672e-07, 1],..]] ; all_ch_level_matrix(data_set_file1(timestamp0, logic_level0), ...)
     # print(f" all_ch_level_matrix {all_ch_level_matrix}")
     signal_names = [dict_elem['signal_name'] for dict_elem in input_dict_list]
-    write_do_file(os.path.dirname(input_dict_list[0]['filepath']), all_ch_level_matrix, signal_names, param_dict)
+    write_stimuli_file(os.path.dirname(input_dict_list[0]['filepath']), all_ch_level_matrix, signal_names, param_dict)
 
 
 if __name__ == '__main__':
