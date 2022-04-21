@@ -37,6 +37,7 @@ PARAM_DICT = {
     'VHD_DO_FILENAME': "my_decoded_file.vhd",  # legal extensions: ".do", ".vhd" -> vhdl is recommended due to much shorter simulation time
     'MAX_WAIT_TIME_NS': 10000,  # just to shorten simulation time
     'MAX_SIM_TIME_US': 1000,  # if only up to this time limit simulation is wanted, counts time with MAX_WAIT_TIMES_NS and not real IDLE-times
+    'MAX_FREQ_MHZ': 200,
     'CSV_Delimiter': ','
 }
 

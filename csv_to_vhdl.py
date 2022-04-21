@@ -35,10 +35,11 @@ This python-script reads csv-data (e.g. taken from a oscilloscope measurement) a
 '''
 
 import csv
+import datetime
 import os
 import math
 
-TEST_MODE = True  # False
+TEST_MODE = False  # False
 
 
 def debug_print(str_to_print):
@@ -63,7 +64,7 @@ def readCsv(filename, delimiter_arg=',', max_row=None):
         for row_num, row in enumerate(filereader):
             debug_print(row)
             if row_num == 0:
-                time_offset = float(row[0])
+                time_offset = float(row[0])  # depending on null line of osci there might be negative time values which have to be converted via the time_offset
             matrix.append([])
             for col_str in row:
                 matrix[row_num].append(float(col_str))
@@ -73,25 +74,31 @@ def readCsv(filename, delimiter_arg=',', max_row=None):
     return header, time_offset, matrix  # 0-based-index, matrix[row][col]
 
 
-def get_edges(time_offset, csvMatrix, logic_family=3.3, positive_going_voltage=2.0, negative_going_voltage=0.8):
+def get_edges(time_offset, csvMatrix, logic_family=3.3, positive_going_voltage=2.0, negative_going_voltage=0.8, max_sim_time_us=100000, max_freq_mhz=2000):
     ''' Find digital level transitions in input data '''
     last_level = 0 if csvMatrix[0][1] < 0.5 * logic_family else 1
     level_matrix = [[0.0, last_level]]
+    level_transition_cnt = 0
 
     for time_logiclevel_tuple in csvMatrix:
-        # checke Spannungslevel
-        voltage_fl = time_logiclevel_tuple[1]
 
-        # benutze Hysterese
+        # check voltage level
+        voltage_fl = time_logiclevel_tuple[1]
+        timestamp = time_logiclevel_tuple[0] + abs(time_offset)
+
+        # use hysterese
         if last_level == 0 and (voltage_fl > positive_going_voltage):
                 last_level = 1
-                timestamp = time_logiclevel_tuple[0] + abs(time_offset)
                 level_matrix.append([timestamp, last_level])
+                level_transition_cnt += 1
         elif last_level == 1 and (voltage_fl < negative_going_voltage):
                 last_level = 0
-                timestamp = time_logiclevel_tuple[0] + abs(time_offset)
                 level_matrix.append([timestamp, last_level])
+                level_transition_cnt += 1
 
+        if level_transition_cnt > (max_sim_time_us * max_freq_mhz):  # break to shorten runtime;
+            print(f"in get_edges(): Break because of level_transition_cnt reached {level_transition_cnt} > max_sim_time_us * max_freq_mhz")
+            break
     return level_matrix
 
 
@@ -177,7 +184,13 @@ def get_and_prepare_csv_data(input_dict_list, param_dict):
         header_str, time_offset, csvMatrix = readCsv(csv_filepath, param_dict['CSV_Delimiter'], param_dict["maxDataRows"])
         print(f"Num of rows: {len(csvMatrix)}")
         get_header_info(header_str)  # ZUTUN
-        level_matrix = get_edges(time_offset, csvMatrix, input_dict_list[file_num]['logic_family'], input_dict_list[file_num]['POSITIVE_GOING_VOLTAGE'], input_dict_list[file_num]['NEGATIVE_GOING_VOLTAGE'])
+        level_matrix = get_edges(time_offset,
+                                 csvMatrix,
+                                 input_dict_list[file_num]['logic_family'],
+                                 input_dict_list[file_num]['POSITIVE_GOING_VOLTAGE'],
+                                 input_dict_list[file_num]['NEGATIVE_GOING_VOLTAGE'],
+                                 param_dict['MAX_SIM_TIME_US'],
+                                 param_dict['MAX_FREQ_MHZ'])
         debug_print(level_matrix)
 
         all_ch_level_matrix.append(level_matrix)
@@ -203,8 +216,10 @@ if __name__ == '__main__':
         'RESOLUTION': "ns",  # legal values: "ns", "ps"
         'VHD_DO_FILENAME': "my_decoded_file.vhd",  # legal extensions: ".do", ".vhd" -> vhdl is recommended due to much shorter simulation time
         'MAX_WAIT_TIME_NS': 10000,  # just to shorten simulation time
-        'MAX_SIM_TIME_US': 4000,  # if just up to this time limit simulation is wanted, counts time with MAX_WAIT_TIMES_NS and not real IDLE-times
-        'CSV_Delimiter': ';'
+        'MAX_SIM_TIME_US': 20,  # if just up to this time limit simulation is wanted, counts time with MAX_WAIT_TIMES_NS and not real IDLE-times
+        'MAX_FREQ_MHZ': 200,  # currently only used to calc break because of MAX_SIM_TIME_US to shorten runtime,
+                                # either the maximum possible frequency of the oscilloscope or the maximum expected signal frequency
+        'CSV_Delimiter': ','
     }
 
     if TEST_MODE is True:
