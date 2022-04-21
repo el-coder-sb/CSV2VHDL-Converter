@@ -66,8 +66,8 @@ class Test_CSV_TO_VHDL(unittest.TestCase):
                         [-3.9989920E-03, 3.34473E+00],
                         [-3.9989912E-03, 3.36426E+00]]
 
-        level_matrix = csv_to_vhdl.get_edges(time_offset=0, csvMatrix=input_matrix, logic_family=3.3, positive_going_voltage=2.0, negative_going_voltage=0.8)
-        self.assertEqual(level_matrix, [[0.0, 1], [-0.003998996, 0], [-0.0039989936, 1]])
+        level_matrix = csv_to_vhdl.get_edges(time_offset=input_matrix[0][0], csvMatrix=input_matrix, logic_family=3.3, positive_going_voltage=2.0, negative_going_voltage=0.8)
+        self.assertEqual(level_matrix, [[0.0, 1], [3.9999999996293e-09, 0], [6.3999999995803525e-09, 1]])
 
     def test_get_and_prepare_csv_data(self):
 
