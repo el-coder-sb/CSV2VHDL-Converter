@@ -74,7 +74,7 @@ def readCsv(filename, delimiter_arg=',', max_row=None):
     return header, time_offset, matrix  # 0-based-index, matrix[row][col]
 
 
-def get_edges(time_offset, csvMatrix, logic_family=3.3, positive_going_voltage=2.0, negative_going_voltage=0.8, max_sim_time_us=100000, max_freq_mhz=2000):
+def get_edges(time_offset, csvMatrix, logic_family=3.3, positive_going_voltage=2.0, negative_going_voltage=0.8, ignore_time_ns=0, max_sim_time_us=100000, max_freq_mhz=2000):
     ''' Find digital level transitions in input data '''
     last_level = 0 if csvMatrix[0][1] < 0.5 * logic_family else 1
     level_matrix = [[0.0, last_level]]
@@ -84,7 +84,9 @@ def get_edges(time_offset, csvMatrix, logic_family=3.3, positive_going_voltage=2
 
         # check voltage level
         voltage_fl = time_logiclevel_tuple[1]
-        timestamp = time_logiclevel_tuple[0] + abs(time_offset)
+        timestamp = time_logiclevel_tuple[0] + abs(time_offset) - (ignore_time_ns / 1e9)
+        if timestamp <= 0:
+            continue
 
         # use hysterese
         if last_level == 0 and (voltage_fl > positive_going_voltage):
@@ -189,6 +191,7 @@ def get_and_prepare_csv_data(input_dict_list, param_dict):
                                  input_dict_list[file_num]['logic_family'],
                                  input_dict_list[file_num]['POSITIVE_GOING_VOLTAGE'],
                                  input_dict_list[file_num]['NEGATIVE_GOING_VOLTAGE'],
+                                 input_dict_list[file_num]['ignore_time_ns'],
                                  param_dict['MAX_SIM_TIME_US'],
                                  param_dict['MAX_FREQ_MHZ'])
         debug_print(level_matrix)
@@ -223,12 +226,11 @@ if __name__ == '__main__':
     }
 
     if TEST_MODE is True:
-        #  'POSITIVE_GOING_VOLTAGE': in V, "NEGATIVE_GOING_VOLTAGE": in V, 'logic_family' in V
-        input_dict1 = {'filepath': r'C:\CSV_to_DO\erste_schritt\RTB2004_CHAN1.CSV', 'signal_name': 'spi_miso_sl_i_s', 'logic_family': 3.3, 'POSITIVE_GOING_VOLTAGE': 2.0, 'NEGATIVE_GOING_VOLTAGE': 0.8}
-        # input_dict2 = {'filepath': r'C:\CSV_to_DO\erste_schritt\RTB2004_CHAN3.CSV', 'signal_name': 'spi_mosi_sl_i_s', 'logic_family': 3.3, 'POSITIVE_GOING_VOLTAGE': 2.0, 'NEGATIVE_GOING_VOLTAGE': 0.8}
-        # input_dict3 = {'filepath': r'C:\CSV_to_DO\erste_schritt\RTB2004_CHAN4.CSV', 'signal_name': 'spi_clk_sl_i_s', 'logic_family': 3.3, 'POSITIVE_GOING_VOLTAGE': 2.0, 'NEGATIVE_GOING_VOLTAGE': 0.8}
-        # input_dict_list = [input_dict1, input_dict2, input_dict3]
-        input_dict_list = [input_dict1]
+        input_dict1 = {'filepath': r"RTA4004_CH1_CLK_01.CSV", 'signal_name': 'spi_clk_stimu01_sl_s', 'logic_family': 3.3, 'POSITIVE_GOING_VOLTAGE': 2.0, 'NEGATIVE_GOING_VOLTAGE': 0.8, 'ignore_time_ns': 10608}
+        input_dict2 = {'filepath': r"RTA4004_CH4_MOSI_01.CSV", 'signal_name': 'spi_mosi_stimu01_sl_s', 'logic_family': 3.3, 'POSITIVE_GOING_VOLTAGE': 2.0, 'NEGATIVE_GOING_VOLTAGE': 0.8, 'ignore_time_ns': 10608}
+        input_dict3 = {'filepath': r"RTA4004_CH1_CLK_02.CSV", 'signal_name': 'spi_clk_stimu02_sl_s', 'logic_family': 3.3, 'POSITIVE_GOING_VOLTAGE': 2.0, 'NEGATIVE_GOING_VOLTAGE': 0.8, 'ignore_time_ns': 0}
+        input_dict4 = {'filepath': r"RTA4004_CH4_MOSI_02.CSV", 'signal_name': 'spi_mosi_stimu02_sl_s', 'logic_family': 3.3, 'POSITIVE_GOING_VOLTAGE': 2.0, 'NEGATIVE_GOING_VOLTAGE': 0.8, 'ignore_time_ns': 0}
+        input_dict_list = [input_dict1, input_dict2, input_dict3, input_dict4]
     else:
         #  'POSITIVE_GOING_VOLTAGE': in V, "NEGATIVE_GOING_VOLTAGE": in V, 'logic_family' in V
         input_dict1 = {'filepath': r"C:\OszilloskopDaten\RTB2004_CH1_MISO_ENDE_02.CSV", 'signal_name': 'spi_miso_sl_i_s', 'logic_family': 3.3, 'POSITIVE_GOING_VOLTAGE': 2.0, 'NEGATIVE_GOING_VOLTAGE': 0.8}

@@ -27,8 +27,8 @@ import sys
 sys.path.insert(0, os.path.abspath("../"))
 import csv_to_vhdl
 
-INPUT_DICT1 = {'filepath': "test_csv_to_vhdl_input_RTB2004_CHAN1.CSV", 'signal_name': 'spi_clk_stimu01_sl_s', 'logic_family': 3.3, 'POSITIVE_GOING_VOLTAGE': 2.0, 'NEGATIVE_GOING_VOLTAGE': 0.8, 'time_offset_ns': 10608}
-INPUT_DICT2 = {'filepath': "test_csv_to_vhdl_input_RTB2004_CHAN3.CSV", 'signal_name': 'spi_mosi_stimu01_sl_s', 'logic_family': 3.3, 'POSITIVE_GOING_VOLTAGE': 2.0, 'NEGATIVE_GOING_VOLTAGE': 0.8, 'time_offset_ns': 10608}
+INPUT_DICT1 = {'filepath': "test_csv_to_vhdl_input_RTB2004_CHAN1.CSV", 'signal_name': 'spi_clk_stimu01_sl_s', 'logic_family': 3.3, 'POSITIVE_GOING_VOLTAGE': 2.0, 'NEGATIVE_GOING_VOLTAGE': 0.8, 'ignore_time_ns': 0}
+INPUT_DICT2 = {'filepath': "test_csv_to_vhdl_input_RTB2004_CHAN3.CSV", 'signal_name': 'spi_mosi_stimu01_sl_s', 'logic_family': 3.3, 'POSITIVE_GOING_VOLTAGE': 2.0, 'NEGATIVE_GOING_VOLTAGE': 0.8, 'ignore_time_ns': 0}
 INPUT_DICT_LIST = [INPUT_DICT1, INPUT_DICT2]
 
 PARAM_DICT = {
@@ -68,6 +68,9 @@ class Test_CSV_TO_VHDL(unittest.TestCase):
 
         level_matrix = csv_to_vhdl.get_edges(time_offset=input_matrix[0][0], csvMatrix=input_matrix, logic_family=3.3, positive_going_voltage=2.0, negative_going_voltage=0.8)
         self.assertEqual(level_matrix, [[0.0, 1], [3.9999999996293e-09, 0], [6.3999999995803525e-09, 1]])
+
+        level_matrix = csv_to_vhdl.get_edges(time_offset=input_matrix[0][0], csvMatrix=input_matrix, logic_family=3.3, positive_going_voltage=2.0, negative_going_voltage=0.8, ignore_time_ns=2)
+        self.assertEqual(level_matrix, [[0.0, 1], [1.9999999996293e-09, 0], [4.399999999580353e-09, 1]])
 
     def test_get_and_prepare_csv_data(self):
 
