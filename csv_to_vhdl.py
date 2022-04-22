@@ -133,12 +133,11 @@ def write_stimuli_file(path, all_ch_level_matrix, sync_dicts, signal_names_list,
 
             debug_print(data_tuple)
             debug_print(last_timestamp)
-            wait_time_ps = round((data_tuple[TIMESTAMP_IDX] - last_timestamp) * 1000000000000, 0)
-            debug_print(f"wait_time_ps real: {wait_time_ps}")
-            if wait_time_ps > (param_dict['MAX_WAIT_TIME_NS'] * 1000):
-                print(f"wait_time_ps is greater than MAX_WAIT_TIME_NS: {wait_time_ps} ps -> will be cutted to {param_dict['MAX_WAIT_TIME_NS']*1000}ps")
-                wait_time_ps = min(wait_time_ps, (param_dict['MAX_WAIT_TIME_NS'] * 1000))
-            debug_print(f"wait_time_ps: {wait_time_ps}")
+            wait_time_tmp_ps = round((data_tuple[TIMESTAMP_IDX] - last_timestamp) * 1000000000000, 0)
+            wait_time_ps = min(wait_time_tmp_ps, (param_dict['MAX_WAIT_TIME_NS'] * 1000))
+            debug_print(f"wait_time_ps real: {wait_time_tmp_ps}; wait_time_ps used: {wait_time_ps}")
+            if wait_time_tmp_ps > wait_time_ps:
+                print(f"wait_time_ps was greater than MAX_WAIT_TIME_NS: {wait_time_tmp_ps} ps -> is cutted to {wait_time_ps}ps")
             if file_extension == '.do':
                 if param_dict["RESOLUTION"] == "ns":
                     dofile.write(f"run {round(wait_time_ps/1000,0)}\n")  # convert diff to ns and round to ns
