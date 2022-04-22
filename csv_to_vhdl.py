@@ -104,7 +104,7 @@ def get_edges(time_offset, csvMatrix, logic_family=3.3, positive_going_voltage=2
     return level_matrix
 
 
-def write_stimuli_file(path, all_ch_level_matrix, signal_names_list, param_dict) -> None:
+def write_stimuli_file(path, all_ch_level_matrix, sync_dicts, signal_names_list, param_dict) -> None:
     TIMESTAMP_IDX = 0
     last_timestamp = 0
     num_timestamps_per_sig_list = [len(all_ch_level_matrix[i]) for i in range(len(all_ch_level_matrix))]  # [5, 12, 210]
@@ -209,7 +209,8 @@ def run_csv_to_do_main(input_dict_list, param_dict):
     # all_ch_level_matrix looks like:  [[[0.0, 1], [9.896e-07, 0]], [[2.672e-07, 1],..]] ; all_ch_level_matrix(data_set_file1(timestamp0, logic_level0), ...)
     # print(f" all_ch_level_matrix {all_ch_level_matrix}")
     signal_names = [dict_elem['signal_name'] for dict_elem in input_dict_list]
-    write_stimuli_file(os.path.dirname(input_dict_list[0]['filepath']), all_ch_level_matrix, signal_names, param_dict)
+    sync_dicts = [dict_elem['SYNC_DICT'] for dict_elem in input_dict_list]
+    write_stimuli_file(os.path.dirname(input_dict_list[0]['filepath']), all_ch_level_matrix, sync_dicts, signal_names, param_dict)
 
 
 if __name__ == '__main__':
@@ -225,18 +226,25 @@ if __name__ == '__main__':
         'CSV_Delimiter': ','
     }
 
+    default_input_dict = {'logic_family': 3.3, 'POSITIVE_GOING_VOLTAGE': 2.0, 'NEGATIVE_GOING_VOLTAGE': 0.8}
+
     if TEST_MODE is True:
-        input_dict1 = {'filepath': r"RTA4004_CH1_CLK_01.CSV", 'signal_name': 'spi_clk_stimu01_sl_s', 'logic_family': 3.3, 'POSITIVE_GOING_VOLTAGE': 2.0, 'NEGATIVE_GOING_VOLTAGE': 0.8, 'ignore_time_ns': 10608}
-        input_dict2 = {'filepath': r"RTA4004_CH4_MOSI_01.CSV", 'signal_name': 'spi_mosi_stimu01_sl_s', 'logic_family': 3.3, 'POSITIVE_GOING_VOLTAGE': 2.0, 'NEGATIVE_GOING_VOLTAGE': 0.8, 'ignore_time_ns': 10608}
-        input_dict3 = {'filepath': r"RTA4004_CH1_CLK_02.CSV", 'signal_name': 'spi_clk_stimu02_sl_s', 'logic_family': 3.3, 'POSITIVE_GOING_VOLTAGE': 2.0, 'NEGATIVE_GOING_VOLTAGE': 0.8, 'ignore_time_ns': 0}
-        input_dict4 = {'filepath': r"RTA4004_CH4_MOSI_02.CSV", 'signal_name': 'spi_mosi_stimu02_sl_s', 'logic_family': 3.3, 'POSITIVE_GOING_VOLTAGE': 2.0, 'NEGATIVE_GOING_VOLTAGE': 0.8, 'ignore_time_ns': 0}
+        input_dict1 = dict({'filepath': r"RTA4004_CH1_CLK_01.CSV", 'signal_name': 'spi_clk_stimu01_sl_s', 'SYNC_DICT':{'IS_CLK': True, 'RUN_NUM': 1, 'CLK_FREQ_MHZ': 20}, 'ignore_time_ns': 10608}, ** default_input_dict)  # concat dicts
+        input_dict2 = dict({'filepath': r"RTA4004_CH4_MOSI_01.CSV", 'signal_name': 'spi_mosi_stimu01_sl_s', 'SYNC_DICT':{'IS_CLK': False, 'RUN_NUM': 1}, 'ignore_time_ns': 10608}, ** default_input_dict)
+        input_dict3 = dict({'filepath': r"RTA4004_CH1_CLK_02.CSV", 'signal_name': 'spi_clk_stimu02_sl_s', 'SYNC_DICT':{'IS_CLK': True, 'RUN_NUM': 2, 'CLK_FREQ_MHZ': 20}, 'ignore_time_ns': 0}, ** default_input_dict)
+        input_dict4 = dict({'filepath': r"RTA4004_CH4_MOSI_02.CSV", 'signal_name': 'spi_mosi_stimu02_sl_s', 'SYNC_DICT':{'IS_CLK': False, 'RUN_NUM': 2}, 'ignore_time_ns': 0}, ** default_input_dict)
         input_dict_list = [input_dict1, input_dict2, input_dict3, input_dict4]
     else:
         #  'POSITIVE_GOING_VOLTAGE': in V, "NEGATIVE_GOING_VOLTAGE": in V, 'logic_family' in V
-        input_dict1 = {'filepath': r"C:\OszilloskopDaten\RTB2004_CH1_MISO_ENDE_02.CSV", 'signal_name': 'spi_miso_sl_i_s', 'logic_family': 3.3, 'POSITIVE_GOING_VOLTAGE': 2.0, 'NEGATIVE_GOING_VOLTAGE': 0.8}
-        input_dict2 = {'filepath': r"C:\OszilloskopDaten\RTB2004_CH3_MOSI_ENDE_02.CSV", 'signal_name': 'spi_mosi_sl_i_s', 'logic_family': 3.3, 'POSITIVE_GOING_VOLTAGE': 2.0, 'NEGATIVE_GOING_VOLTAGE': 0.8}
-        input_dict3 = {'filepath': r"C:\OszilloskopDaten\RTB2004_CH4_CLK_ENDE_02.CSV", 'signal_name': 'spi_clk_sl_i_s', 'logic_family': 3.3, 'POSITIVE_GOING_VOLTAGE': 2.0, 'NEGATIVE_GOING_VOLTAGE': 0.8}
-        input_dict_list = [input_dict1, input_dict2, input_dict3]
-        # input_dict_list = [input_dict3]
+        #  'ignore_time_ns' typischerweise aus ModelSim-Wave ablesen
+        #  'IS_CLK', 'RUN_NUM' and 'CLK_FREQ_MHZ' only used for sync
+        input_dict1 = dict({'filepath': r"RTA4004_CH1_CLK_01.CSV", 'signal_name': 'spi_clk_stimu01_sl_s', 'SYNC_DICT': None, 'ignore_time_ns': 10608}, ** default_input_dict)
+        input_dict2 = dict({'filepath': r"RTA4004_CH4_MOSI_01.CSV", 'signal_name': 'spi_mosi_stimu01_sl_s', 'SYNC_DICT': None, 'ignore_time_ns': 10608}, ** default_input_dict)
+        input_dict3 = dict({'filepath': r"RTA4004_CH1_CLK_02.CSV", 'signal_name': 'spi_clk_stimu02_sl_s', 'SYNC_DICT': None, 'ignore_time_ns': 0}, ** default_input_dict)
+        input_dict4 = dict({'filepath': r"RTA4004_CH4_MOSI_02.CSV", 'signal_name': 'spi_mosi_stimu02_sl_s', 'SYNC_DICT': None, 'ignore_time_ns': 0}, ** default_input_dict)
+        input_dict_list = [input_dict1, input_dict2, input_dict3, input_dict4]
 
+    starttime = datetime.datetime.now()
     run_csv_to_do_main(input_dict_list, param_dict)
+    runtime = datetime.datetime.now() - starttime
+    print(f"runtime: {runtime}")
