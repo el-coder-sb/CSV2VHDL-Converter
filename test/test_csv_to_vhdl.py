@@ -27,8 +27,8 @@ import sys
 sys.path.insert(0, os.path.abspath("../"))
 import csv_to_vhdl
 
-INPUT_DICT1 = {'filepath': "test_csv_to_vhdl_input_RTB2004_CHAN1.CSV", 'signal_name': 'spi_clk_stimu01_sl_s', 'SYNC_DICT': None, 'logic_family': 3.3, 'POSITIVE_GOING_VOLTAGE': 2.0, 'NEGATIVE_GOING_VOLTAGE': 0.8, 'ignore_time_ns': 0}
-INPUT_DICT2 = {'filepath': "test_csv_to_vhdl_input_RTB2004_CHAN3.CSV", 'signal_name': 'spi_mosi_stimu01_sl_s', 'SYNC_DICT': None, 'logic_family': 3.3, 'POSITIVE_GOING_VOLTAGE': 2.0, 'NEGATIVE_GOING_VOLTAGE': 0.8, 'ignore_time_ns': 0}
+INPUT_DICT1 = {'filepath': "test_csv_to_vhdl_input_RTB2004_CHAN1.CSV", 'vhdl_signal_name': 'spi_clk_stimu01_sl_s', 'signal': 'CLK', 'RUN_NUM': 1, 'logic_family': 3.3, 'POSITIVE_GOING_VOLTAGE': 2.0, 'NEGATIVE_GOING_VOLTAGE': 0.8, 'MIN_FREQ_MHZ': 20, 'ignore_time_ns': 0}
+INPUT_DICT2 = {'filepath': "test_csv_to_vhdl_input_RTB2004_CHAN3.CSV", 'vhdl_signal_name': 'spi_mosi_stimu01_sl_s', 'signal': 'CLK', 'RUN_NUM': 2, 'logic_family': 3.3, 'POSITIVE_GOING_VOLTAGE': 2.0, 'NEGATIVE_GOING_VOLTAGE': 0.8, 'MIN_FREQ_MHZ': 20, 'ignore_time_ns': 0}
 INPUT_DICT_LIST = [INPUT_DICT1, INPUT_DICT2]
 
 PARAM_DICT = {
@@ -38,6 +38,7 @@ PARAM_DICT = {
     'MAX_WAIT_TIME_NS': 10000,  # just to shorten simulation time
     'MAX_SIM_TIME_US': 1000,  # if only up to this time limit simulation is wanted, counts time with MAX_WAIT_TIMES_NS and not real IDLE-times
     'MAX_FREQ_MHZ': 200,
+    'DO_SYNC': True,
     'CSV_Delimiter': ','
 }
 
@@ -113,9 +114,12 @@ class Test_CSV_TO_VHDL(unittest.TestCase):
                                 [7.312e-07, 0],
                                 [8.272e-07, 1],
                                 [2.2752e-06, 0]]]
-        sync_dicts = [dict_elem['SYNC_DICT'] for dict_elem in INPUT_DICT_LIST]
-        signal_names_list = [dict_elem['signal_name'] for dict_elem in INPUT_DICT_LIST]
-        csv_to_vhdl.write_stimuli_file("", all_ch_level_matrix, sync_dicts, signal_names_list, PARAM_DICT)
+
+        run_num_list = [dict_elem['RUN_NUM'] for dict_elem in INPUT_DICT_LIST]
+        signals_list = [dict_elem['signal'] for dict_elem in INPUT_DICT_LIST]
+        vhdl_signal_names = [dict_elem['vhdl_signal_name'] for dict_elem in INPUT_DICT_LIST]
+        min_freq_list = [dict_elem['MIN_FREQ_MHZ'] for dict_elem in INPUT_DICT_LIST]
+        csv_to_vhdl.write_stimuli_file("", all_ch_level_matrix, vhdl_signal_names, run_num_list, signals_list, min_freq_list, PARAM_DICT)
 
     def test_csv_to_vhdl_all(self):
         this_path = os.path.dirname(os.path.abspath(__file__))
