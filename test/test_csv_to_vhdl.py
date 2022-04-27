@@ -38,7 +38,7 @@ PARAM_DICT = {
     'MAX_WAIT_TIME_NS': 10000,  # just to shorten simulation time
     'MAX_SIM_TIME_US': 1000,  # if only up to this time limit simulation is wanted, counts time with MAX_WAIT_TIMES_NS and not real IDLE-times
     'MAX_FREQ_MHZ': 200,
-    'DO_SYNC': True,
+    'DO_SYNC': False,
     'CSV_Delimiter': ','
 }
 
@@ -46,6 +46,7 @@ PARAM_DICT = {
 class Test_CSV_TO_VHDL(unittest.TestCase):
 
     def test_readCsv(self):
+        print(f"\n{sys._getframe().f_code.co_name}()")
         # simple
         header, time_offset, matrix = csv_to_vhdl.readCsv("test_csv_to_vhdl_input_RTB2004_CHAN1.CSV", delimiter_arg=',', max_row=3)
 
@@ -54,6 +55,7 @@ class Test_CSV_TO_VHDL(unittest.TestCase):
         self.assertEqual(matrix, [[-2e-07, 3.36426], [-1.992e-07, 3.33496], [-1.984e-07, 3.40332], [-1.976e-07, 3.40332]])
 
     def test_get_edges(self):
+        print(f"\n{sys._getframe().f_code.co_name}()")
         input_matrix = [[-3.9990000E-03, 3.32520E+00],
                         [-3.9989992E-03, 3.34473E+00],
                         [-3.9989984E-03, 3.35449E+00],
@@ -74,7 +76,7 @@ class Test_CSV_TO_VHDL(unittest.TestCase):
         self.assertEqual(level_matrix, [[0.0, 1], [1.9999999996293e-09, 0], [4.399999999580353e-09, 1]])
 
     def test_get_and_prepare_csv_data(self):
-
+        print(f"\n{sys._getframe().f_code.co_name}()")
         all_ch_level_matrix = csv_to_vhdl.get_and_prepare_csv_data(INPUT_DICT_LIST, PARAM_DICT)
         self.assertEqual(all_ch_level_matrix, [[[0.0, 1],
                                                 [9.903999999999999e-07, 0],
@@ -95,7 +97,9 @@ class Test_CSV_TO_VHDL(unittest.TestCase):
                                                 [8.272e-07, 1],
                                                 [2.2752e-06, 0]]])
 
-    def test_write_stimuli_file(self):
+    def test_write_stimuli_file_simple(self):
+        print(f"\n{sys._getframe().f_code.co_name}()")
+        import difflib
         all_ch_level_matrix = [[[0.0, 1],
                                 [9.903999999999999e-07, 0],
                                 [1.4303999999999999e-06, 1],
@@ -121,7 +125,66 @@ class Test_CSV_TO_VHDL(unittest.TestCase):
         min_freq_list = [dict_elem['MIN_FREQ_MHZ'] for dict_elem in INPUT_DICT_LIST]
         csv_to_vhdl.write_stimuli_file("", all_ch_level_matrix, vhdl_signal_names, run_num_list, signals_list, min_freq_list, PARAM_DICT)
 
+        with open("test_write_stimuli_file_gm.vhd") as f1:
+            f1_text = f1.readlines()
+        with open(PARAM_DICT['VHD_DO_FILENAME']) as f2:
+            f2_text = f2.readlines()
+        # Find and print the diff:
+        found_diff = False
+        for line in difflib.unified_diff(f1_text, f2_text, fromfile='golden_model', tofile='generated_output', lineterm=''):
+            print(line)
+            found_diff = True
+        if found_diff is True:
+            self.assertTrue(False)
+
+    def test_write_stimuli_file_sync(self):
+        print(f"\n{sys._getframe().f_code.co_name}()")
+        import difflib
+        print(f"\n\n+++++++++++++++++++++++++++++++++\test_write_stimuli_file_sync\n+++++++++++++++++++++++++++++++++")
+        param_dict_local = {
+            'maxDataRows': None,
+            'RESOLUTION': "ns",  # legal values: "ns", "ps"
+            'VHD_DO_FILENAME': "my_decoded_file.vhd",  # legal extensions: ".do", ".vhd" -> vhdl is recommended due to much shorter simulation time
+            'MAX_WAIT_TIME_NS': 10000,  # just to shorten simulation time
+            'MAX_SIM_TIME_US': 1000,  # if only up to this time limit simulation is wanted, counts time with MAX_WAIT_TIMES_NS and not real IDLE-times
+            'MAX_FREQ_MHZ': 200,
+            'DO_SYNC': True,
+            'CSV_Delimiter': ','
+        }
+        input_dict1_local = {'filepath': "test_csv_to_vhdl_input_RTB2004_CHAN1.CSV", 'vhdl_signal_name': 'spi_clk_stimu01_sl_s', 'signal': 'CLK', 'RUN_NUM': 1, 'logic_family': 3.3, 'POSITIVE_GOING_VOLTAGE': 2.0, 'NEGATIVE_GOING_VOLTAGE': 0.8, 'MIN_FREQ_MHZ': 20, 'ignore_time_ns': 0}
+        input_dict2_local = {'filepath': "test_csv_to_vhdl_input_RTB2004_CHAN3.CSV", 'vhdl_signal_name': 'spi_mosi_stimu01_sl_s', 'signal': 'CLK', 'RUN_NUM': 2, 'logic_family': 3.3, 'POSITIVE_GOING_VOLTAGE': 2.0, 'NEGATIVE_GOING_VOLTAGE': 0.8, 'MIN_FREQ_MHZ': 20, 'ignore_time_ns': 0}
+        input_dict_list_local = [input_dict1_local, input_dict2_local]
+
+        all_ch_level_matrix = [[[0.0, 1],
+                                [9e-06, 0],
+                                [10e-06, 1],
+                                [14e-06, 0],
+                                [22e-06, 1]],
+                               [[0.0, 1],
+                                [9e-06, 0],
+                                [10.6e-06, 1],
+                                [14e-06, 0],
+                                [22e-06, 1]]]
+        run_num_list = [dict_elem['RUN_NUM'] for dict_elem in INPUT_DICT_LIST]
+        signals_list = [dict_elem['signal'] for dict_elem in INPUT_DICT_LIST]
+        vhdl_signal_names = [dict_elem['vhdl_signal_name'] for dict_elem in INPUT_DICT_LIST]
+        min_freq_list = [dict_elem['MIN_FREQ_MHZ'] for dict_elem in INPUT_DICT_LIST]
+        csv_to_vhdl.write_stimuli_file("", all_ch_level_matrix, vhdl_signal_names, run_num_list, signals_list, min_freq_list, param_dict_local)
+
+        with open("test_write_stimuli_file_gm_02.vhd") as f1:
+            f1_text = f1.readlines()
+        with open(PARAM_DICT['VHD_DO_FILENAME']) as f2:
+            f2_text = f2.readlines()
+        # Find and print the diff:
+        found_diff = False
+        for line in difflib.unified_diff(f1_text, f2_text, fromfile='golden_model', tofile='generated_output', lineterm=''):
+            print(line)
+            found_diff = True
+        if found_diff is True:
+            self.assertTrue(False)
+
     def test_csv_to_vhdl_all(self):
+        print(f"\n{sys._getframe().f_code.co_name}()")
         this_path = os.path.dirname(os.path.abspath(__file__))
         input_file = "test_tb_gen_input.vhd"
         sys.argv.append(os.path.join(this_path, input_file))
@@ -144,4 +207,6 @@ class Test_CSV_TO_VHDL(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+#     test_suite = Test_CSV_TO_VHDL()
+#     test_suite.test_write_stimuli_file()
 

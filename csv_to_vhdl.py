@@ -136,16 +136,25 @@ def write_stimuli_file(path, all_ch_level_matrix, vhdl_signal_names, run_num_lis
             dofile.write('\t--\n')
 
         nxt_timestamp_per_sig_idx = [0 for i in range(len(vhdl_signal_names))]  # [0, 0, 0]
+        nxt_time_neg_offset_per_sig_s_list = [0 for i in range(len(vhdl_signal_names))]
 
         while nxt_timestamp_per_sig_idx != []:
             nxt_timestamp_list = [all_ch_level_matrix[num][nxt_timestamp_per_sig_idx[num]][TIMESTAMP_IDX] for num in range(len(nxt_timestamp_per_sig_idx))]  # [0.0, 2.76e-07, 1.968e-07]
+            debug_print(f"nxt_timestamp_list {nxt_timestamp_list}")  # [0.0, 2.76e-07, 1.968e-07]
+
+            for timestamp_idx, timestamp in enumerate(nxt_timestamp_list):
+                nxt_timestamp_list[timestamp_idx] -= nxt_time_neg_offset_per_sig_s_list[timestamp_idx]
+
             debug_print(f"nxt_timestamp_list {nxt_timestamp_list}")  # [0.0, 2.76e-07, 1.968e-07]
             signal_nxt_timestamp_min_val_idx = min(range(len(nxt_timestamp_list)), key=nxt_timestamp_list.__getitem__)  # signal_nxt_timestamp_min_val_idx = signal with the next min timestamp
             debug_print(f" signal_nxt_timestamp_min_val_idx {signal_nxt_timestamp_min_val_idx}")
             data_tuple = all_ch_level_matrix[signal_nxt_timestamp_min_val_idx][nxt_timestamp_per_sig_idx[signal_nxt_timestamp_min_val_idx]]
 
-            debug_print(data_tuple)
-            debug_print(last_timestamp)
+            data_tuple[TIMESTAMP_IDX] -= nxt_time_neg_offset_per_sig_s_list[signal_nxt_timestamp_min_val_idx]
+            nxt_time_neg_offset_per_sig_s_list = [0 for i in range(len(vhdl_signal_names))]  # wieder alles nullen
+
+            debug_print(f"selected data_tuple: {data_tuple}")
+            debug_print(f"last_timestamp: {last_timestamp}")
             wait_time_tmp_ps = round((data_tuple[TIMESTAMP_IDX] - last_timestamp) * 1000000000000, 0)
             wait_time_ps = min(wait_time_tmp_ps, (param_dict['MAX_WAIT_TIME_NS'] * 1000))
             debug_print(f"wait_time_ps real: {wait_time_tmp_ps}; wait_time_ps used: {wait_time_ps}")
@@ -156,6 +165,7 @@ def write_stimuli_file(path, all_ch_level_matrix, vhdl_signal_names, run_num_lis
                 signal_nxt_timestamp_min_idx = None
                 nxt_switching_signal_per_run_list = []
                 if wait_time_ps > 3 * (1 / (min_freq_mhz * 1000000)):  # 3 heuristical value
+                    debug_print(f"{wait_time_ps} > {3 * (1 / (min_freq_mhz * 1000000))} -> Prüfe auf Sync")
                     # finde für jeden run den nächsten Zeitstempel
                     for run_num in range(num_different_runs):
                         # gehe alle Signale durch
@@ -173,7 +183,7 @@ def write_stimuli_file(path, all_ch_level_matrix, vhdl_signal_names, run_num_lis
                                 debug_print(f"nxt_switching_signal_per_run_list: {nxt_switching_signal_per_run_list}")
                     # check if for every run the next signal is of same type (don´t sync if e.g. next signal is run1=CLK and run2=MOSI)
                     if len(set(nxt_switching_signal_per_run_list)) == 1:
-                        print("######### LOS mach SYNC")
+                        print("######### LOS! Mach SYNC")
                         # ermittle Zeitdifferenz zwischen den Syncsignalen
                         for signal_idx, signal_type in enumerate(signals_list):
                             print(f"signal_idx, signal_type {signal_idx}, {signal_type}")
@@ -181,9 +191,11 @@ def write_stimuli_file(path, all_ch_level_matrix, vhdl_signal_names, run_num_lis
                             if signal_idx != signal_nxt_timestamp_min_val_idx:
                                 if signal_type == nxt_switching_signal_per_run_list[0]:
                                     debug_print(f"nxt_timestamp_list[signal_idx]: {nxt_timestamp_list[signal_idx]}")
-                                    time_delta_ps = (nxt_timestamp_list[signal_idx] - data_tuple[TIMESTAMP_IDX]) * 1000000000000
+                                    time_delta_ps = round((nxt_timestamp_list[signal_idx] - data_tuple[TIMESTAMP_IDX]) * 1000000000000)
                                     debug_print(f"time_delta_ps: {time_delta_ps}")
-                        # speichere Zeitdifferenz als neg. Offset für nächsten Zeitstempel
+                                    # speichere Zeitdifferenz als neg. Offset für nächsten Zeitstempel
+                                    nxt_time_neg_offset_per_sig_s_list[signal_idx] = time_delta_ps / 1e+12
+                    debug_print(f"nxt_time_neg_offset_per_sig_s_list: {nxt_time_neg_offset_per_sig_s_list}")
 
             if file_extension == '.do':
                 if param_dict["RESOLUTION"] == "ns":
