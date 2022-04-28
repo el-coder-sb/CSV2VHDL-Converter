@@ -183,7 +183,7 @@ class Test_CSV_TO_VHDL(unittest.TestCase):
         min_freq_list = [dict_elem['MIN_FREQ_MHZ'] for dict_elem in input_dict_list_local]
         csv_to_vhdl.write_stimuli_file("", all_ch_level_matrix, vhdl_signal_names, run_num_list, signals_list, min_freq_list, param_dict_local)
 
-        with open("test_write_stimuli_file_gm_02.vhd") as f1:
+        with open("test_write_stimuli_file_sync_gm.vhd") as f1:
             f1_text = f1.readlines()
         with open(PARAM_DICT['VHD_DO_FILENAME']) as f2:
             f2_text = f2.readlines()
@@ -218,7 +218,7 @@ class Test_CSV_TO_VHDL(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    # unittest.main()
-    test_suite = Test_CSV_TO_VHDL()
-    test_suite.test_write_stimuli_file_sync()
+    unittest.main()
+#     test_suite = Test_CSV_TO_VHDL()
+#     test_suite.test_write_stimuli_file_sync()
 

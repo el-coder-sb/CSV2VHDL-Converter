@@ -163,8 +163,9 @@ def write_stimuli_file(path, all_ch_level_matrix, vhdl_signal_names, run_num_lis
 
             if do_sync is True:
                 nxt_switching_signal_per_run_list = [None for i in range(num_different_runs)]
-                if wait_time_ps > 3 * (1 / (min_freq_mhz * 1000000)):  # 3 heuristical value
-                    debug_print(f"{wait_time_ps} > {3 * (1 / (min_freq_mhz * 1000000))} -> Prüfe auf Sync")
+                wait_time_s = wait_time_ps / 1E+12
+                if (wait_time_s) > (3 * (1 / (min_freq_mhz * 1000000))):  # 3 heuristical value
+                    debug_print(f"{wait_time_s} > {3 * (1 / (min_freq_mhz * 1000000))} -> Prüfe auf Sync")
                     # finde für jeden run den nächsten Zeitstempel
                     for run_num in range(num_different_runs):
                         nxt_timestamp_min_this_run_idx = None
@@ -215,7 +216,7 @@ def write_stimuli_file(path, all_ch_level_matrix, vhdl_signal_names, run_num_lis
                         debug_print(f"set(nxt_switching_signal_per_run_list) {set(nxt_switching_signal_per_run_list)}")
                     debug_print(f"nxt_time_neg_offset_per_sig_s_list: {nxt_time_neg_offset_per_sig_s_list}")
                 else:
-                    debug_print(f"wait_time_ps {wait_time_ps} < {3 * (1 / (min_freq_mhz * 1000000))} -> Daher kein Sync")
+                    debug_print(f"wait_time_s {wait_time_s} < {3 * (1 / (min_freq_mhz * 1000000))} -> KEIN Sync")
             if file_extension == '.do':
                 if param_dict["RESOLUTION"] == "ns":
                     dofile.write(f"run {round(wait_time_ps/1000,0)}\n")  # convert diff to ns and round to ns
