@@ -151,7 +151,6 @@ def write_stimuli_file(path, all_ch_level_matrix, vhdl_signal_names, run_num_lis
             data_tuple = all_ch_level_matrix[signal_nxt_timestamp_min_val_idx][nxt_timestamp_per_sig_idx[signal_nxt_timestamp_min_val_idx]]
 
             data_tuple[TIMESTAMP_IDX] -= nxt_time_neg_offset_per_sig_s_list[signal_nxt_timestamp_min_val_idx]
-            # nxt_time_neg_offset_per_sig_s_list = [0 for i in range(len(vhdl_signal_names))]  # wieder alles nullen
 
             debug_print(f"selected data_tuple: {data_tuple}")
             debug_print(f"last_timestamp: {last_timestamp}")
@@ -170,30 +169,23 @@ def write_stimuli_file(path, all_ch_level_matrix, vhdl_signal_names, run_num_lis
                     for run_num in range(num_different_runs):
                         nxt_timestamp_min_this_run_idx = None
                         # gehe alle Signale durch
-                        signal_idx_of_min_timestamp = None
                         for signal_idx, run_of_signal in enumerate(run_num_list):
                             # prüfe of Signal zu aktuellem run gehört
                             if run_of_signal == (run_num + 1):
                                 if nxt_timestamp_min_this_run_idx is None:
-                                    nxt_timestamp_min_this_run_idx = nxt_timestamp_per_sig_idx[signal_idx]
-                                    signal_idx_of_min_timestamp = signal_idx
+                                    nxt_timestamp_min_this_run_idx = signal_idx
                                     nxt_switching_signal_per_run_list[run_num] = signals_list[signal_idx]
                                 else:
-                                    debug_print(f"nxt_timestamp_list {nxt_timestamp_list}")
-                                    debug_print(f"nxt_timestamp_per_sig_idx {nxt_timestamp_per_sig_idx}")
                                     debug_print(f"signal_idx {signal_idx}")
                                     debug_print(f"nxt_timestamp_min_this_run_idx {nxt_timestamp_min_this_run_idx}")
-                                    debug_print(f"signal_idx_of_min_timestamp {signal_idx_of_min_timestamp}")
-                                    if nxt_timestamp_list[signal_idx_of_min_timestamp] > nxt_timestamp_list[signal_idx]:
-                                        # nxt_timestamp_min_this_run_idx = min(nxt_timestamp_min_this_run_idx, nxt_timestamp_per_sig_idx[signal_idx])
-                                        nxt_timestamp_min_this_run_idx
-                                        signal_idx_of_min_timestamp = signal_idx
+                                    if nxt_timestamp_list[nxt_timestamp_min_this_run_idx] > nxt_timestamp_list[signal_idx]:
+                                        nxt_timestamp_min_this_run_idx = signal_idx
                                         nxt_switching_signal_per_run_list[run_num] = signals_list[signal_idx]
                                 debug_print(f"nxt_switching_signal_per_run_list: {nxt_switching_signal_per_run_list}")
                     # check if for every run the next signal is of same type (don´t sync if e.g. next signal is run1=CLK and run2=MOSI)
                     debug_print(f"nxt_switching_signal_per_run_list: {nxt_switching_signal_per_run_list}")
                     if len(set(nxt_switching_signal_per_run_list)) == 1:
-                        print("######### LOS! Mach SYNC")
+                        debug_print("######### LOS! Mach SYNC")
                         # ermittle Zeitdifferenz zwischen den Syncsignalen
                         for signal_idx, signal_type in enumerate(signals_list):
                             debug_print(f"signal_idx, signal_type: {signal_idx}, {signal_type}")
@@ -203,11 +195,11 @@ def write_stimuli_file(path, all_ch_level_matrix, vhdl_signal_names, run_num_lis
                                     debug_print(f"nxt_timestamp_list[signal_idx]: {nxt_timestamp_list[signal_idx]}")
                                     time_delta_ps = round((nxt_timestamp_list[signal_idx] - data_tuple[TIMESTAMP_IDX]) * 1000000000000)
                                     debug_print(f"time_delta_ps: {time_delta_ps}")
-                                    run_neg_offset = time_delta_ps / 1e+12
+                                    neg_offset_this_run_in_s = time_delta_ps / 1e+12
                                     # speichere Zeitdifferenz als neg. Offset für nächsten Zeitstempel für alle Signale diesen Runs
                                     for signal_idx_loop, run_num_loop in enumerate(run_num_list):
                                         if run_num_loop == run_num_list[signal_idx]:
-                                            nxt_time_neg_offset_per_sig_s_list[signal_idx_loop] = run_neg_offset
+                                            nxt_time_neg_offset_per_sig_s_list[signal_idx_loop] = neg_offset_this_run_in_s
                                 else:
                                     debug_print(f"signal_type {signal_type} not matching.")
                             else:
