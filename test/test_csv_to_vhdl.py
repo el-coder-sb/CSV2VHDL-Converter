@@ -151,24 +151,36 @@ class Test_CSV_TO_VHDL(unittest.TestCase):
             'DO_SYNC': True,
             'CSV_Delimiter': ','
         }
-        input_dict1_local = {'filepath': "test_csv_to_vhdl_input_RTB2004_CHAN1.CSV", 'vhdl_signal_name': 'spi_clk_stimu01_sl_s', 'signal': 'CLK', 'RUN_NUM': 1, 'logic_family': 3.3, 'POSITIVE_GOING_VOLTAGE': 2.0, 'NEGATIVE_GOING_VOLTAGE': 0.8, 'MIN_FREQ_MHZ': 20, 'ignore_time_ns': 0}
-        input_dict2_local = {'filepath': "test_csv_to_vhdl_input_RTB2004_CHAN3.CSV", 'vhdl_signal_name': 'spi_mosi_stimu01_sl_s', 'signal': 'CLK', 'RUN_NUM': 2, 'logic_family': 3.3, 'POSITIVE_GOING_VOLTAGE': 2.0, 'NEGATIVE_GOING_VOLTAGE': 0.8, 'MIN_FREQ_MHZ': 20, 'ignore_time_ns': 0}
-        input_dict_list_local = [input_dict1_local, input_dict2_local]
+        input_dict1_local = {'vhdl_signal_name': 'spi_clk_stimu01_sl_s', 'signal': 'CLK', 'RUN_NUM': 1, 'logic_family': 3.3, 'POSITIVE_GOING_VOLTAGE': 2.0, 'NEGATIVE_GOING_VOLTAGE': 0.8, 'MIN_FREQ_MHZ': 20, 'ignore_time_ns': 0}
+        input_dict2_local = {'vhdl_signal_name': 'spi_mosi_stimu01_sl_s', 'signal': 'MOSI', 'RUN_NUM': 1, 'logic_family': 3.3, 'POSITIVE_GOING_VOLTAGE': 2.0, 'NEGATIVE_GOING_VOLTAGE': 0.8, 'MIN_FREQ_MHZ': 20, 'ignore_time_ns': 0}
+        input_dict3_local = {'vhdl_signal_name': 'spi_clk_stimu02_sl_s', 'signal': 'CLK', 'RUN_NUM': 2, 'logic_family': 3.3, 'POSITIVE_GOING_VOLTAGE': 2.0, 'NEGATIVE_GOING_VOLTAGE': 0.8, 'MIN_FREQ_MHZ': 20, 'ignore_time_ns': 0}
+        input_dict4_local = {'vhdl_signal_name': 'spi_mosi_stimu02_sl_s', 'signal': 'MOSI', 'RUN_NUM': 2, 'logic_family': 3.3, 'POSITIVE_GOING_VOLTAGE': 2.0, 'NEGATIVE_GOING_VOLTAGE': 0.8, 'MIN_FREQ_MHZ': 20, 'ignore_time_ns': 0}
+        input_dict_list_local = [input_dict1_local, input_dict2_local, input_dict3_local, input_dict4_local]
 
-        all_ch_level_matrix = [[[0.0, 1],
+        all_ch_level_matrix = [[[0.0, 1],  # CLK 1
                                 [9e-06, 0],
                                 [10e-06, 1],
                                 [14e-06, 0],
                                 [22e-06, 1]],
-                               [[0.0, 1],
+                               [[0.0, 1],  # MOSI 1
                                 [9e-06, 0],
-                                [10.6e-06, 1],
+                                [10.001e-06, 1],
+                                [14e-06, 0],
+                                [22e-06, 1]],
+                               [[0.0, 1],  # CLK 2
+                                [9e-06, 0],
+                                [10.60e-06, 1],
+                                [14e-06, 0],
+                                [22e-06, 1]],
+                               [[0.0, 1],  # MOSI 2
+                                [9e-06, 0],
+                                [10.61e-06, 1],
                                 [14e-06, 0],
                                 [22e-06, 1]]]
-        run_num_list = [dict_elem['RUN_NUM'] for dict_elem in INPUT_DICT_LIST]
-        signals_list = [dict_elem['signal'] for dict_elem in INPUT_DICT_LIST]
-        vhdl_signal_names = [dict_elem['vhdl_signal_name'] for dict_elem in INPUT_DICT_LIST]
-        min_freq_list = [dict_elem['MIN_FREQ_MHZ'] for dict_elem in INPUT_DICT_LIST]
+        run_num_list = [dict_elem['RUN_NUM'] for dict_elem in input_dict_list_local]
+        signals_list = [dict_elem['signal'] for dict_elem in input_dict_list_local]
+        vhdl_signal_names = [dict_elem['vhdl_signal_name'] for dict_elem in input_dict_list_local]
+        min_freq_list = [dict_elem['MIN_FREQ_MHZ'] for dict_elem in input_dict_list_local]
         csv_to_vhdl.write_stimuli_file("", all_ch_level_matrix, vhdl_signal_names, run_num_list, signals_list, min_freq_list, param_dict_local)
 
         with open("test_write_stimuli_file_gm_02.vhd") as f1:
@@ -206,7 +218,7 @@ class Test_CSV_TO_VHDL(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
-#     test_suite = Test_CSV_TO_VHDL()
-#     test_suite.test_write_stimuli_file()
+    # unittest.main()
+    test_suite = Test_CSV_TO_VHDL()
+    test_suite.test_write_stimuli_file_sync()
 
