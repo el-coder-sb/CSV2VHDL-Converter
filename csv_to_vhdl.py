@@ -38,6 +38,7 @@ import csv
 import datetime
 import os
 import math
+import time
 
 TEST_MODE = True  # False
 
@@ -47,12 +48,29 @@ def debug_print(str_to_print):
         print(str_to_print)
 
 
+def time_wrapper(func):  # accepts all arguments
+
+    def _wrapper(*args, **kwargs):  # accepts all arguments
+        start = time.time()
+        _return = func(*args, **kwargs)  # execute the actual function
+
+        end = time.time()  # function executed, time is calculated with ms precision
+
+        # calculate execution time is seconds (if t > 0), else in ms
+        _exce_time = f"{(end - start):0.2f} s" if int(end - start) > 0 else f"{(end - start)*1e3:0.2f} ms"
+        print(f"Runtime '{func.__name__}': {_exce_time}")
+        return _return
+
+    return _wrapper
+
+
 def get_header_info(header_str, device="RTB2004"):
     ''' CURRENTLY NOT USEFULL '''
     if device == "RTB2004":  # Rohde&Schwarz
         pass  # TODO
 
 
+@time_wrapper
 def readCsv(filename, delimiter_arg=',', max_row=None):
     print(f"Read data from {filename} ")
     # matrix = [[] for i in range(numCol)] # for 2D list-array, matrix = [row][col], 0-based-index!
@@ -74,6 +92,7 @@ def readCsv(filename, delimiter_arg=',', max_row=None):
     return header, time_offset, matrix  # 0-based-index, matrix[row][col]
 
 
+@time_wrapper
 def get_edges(time_offset, csvMatrix, logic_family=3.3, positive_going_voltage=2.0, negative_going_voltage=0.8, ignore_time_ns=0, max_sim_time_us=100000, max_freq_mhz=2000):
     ''' Find digital level transitions in input data '''
     last_level = 0 if csvMatrix[0][1] < 0.5 * logic_family else 1
@@ -104,6 +123,7 @@ def get_edges(time_offset, csvMatrix, logic_family=3.3, positive_going_voltage=2
     return level_matrix
 
 
+@time_wrapper
 def write_stimuli_file(path, all_ch_level_matrix, vhdl_signal_names, run_num_list, signals_list, min_freq_list, param_dict) -> None:
     TIMESTAMP_IDX = 0
     last_timestamp = 0
@@ -249,6 +269,7 @@ def write_stimuli_file(path, all_ch_level_matrix, vhdl_signal_names, run_num_lis
     print(f"\n{os.path.join(path, param_dict['VHD_DO_FILENAME'])} was written successfully!")
 
 
+@time_wrapper
 def get_and_prepare_csv_data(input_dict_list, param_dict):
     ''' Read csv file(s) and create Matrix/Table from content'''
     all_ch_level_matrix = []
