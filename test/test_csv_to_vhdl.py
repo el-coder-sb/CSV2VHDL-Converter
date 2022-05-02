@@ -140,7 +140,7 @@ class Test_CSV_TO_VHDL(unittest.TestCase):
     def test_write_stimuli_file_sync(self):
         print(f"\n{sys._getframe().f_code.co_name}()")
         import difflib
-        print(f"\n\n+++++++++++++++++++++++++++++++++\test_write_stimuli_file_sync\n+++++++++++++++++++++++++++++++++")
+        print(f"\n\n+++++++++++++++++++++++++++++++++ test_write_stimuli_file_sync\n+++++++++++++++++++++++++++++++++")
         param_dict_local = {
             'maxDataRows': None,
             'RESOLUTION': "ns",  # legal values: "ns", "ps"
@@ -196,7 +196,7 @@ class Test_CSV_TO_VHDL(unittest.TestCase):
             self.assertTrue(False)
 
     def test_csv_to_vhdl_all(self):
-        print(f"\n{sys._getframe().f_code.co_name}()")
+        print(f"\n{sys._getframe().f_code.co_name}()\n")
         this_path = os.path.dirname(os.path.abspath(__file__))
         input_file = "test_tb_gen_input.vhd"
         sys.argv.append(os.path.join(this_path, input_file))
