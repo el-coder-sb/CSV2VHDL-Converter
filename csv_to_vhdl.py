@@ -298,6 +298,7 @@ def write_stimuli_file(path, all_ch_level_matrix, vhdl_signal_names, run_num_lis
                 del vhdl_signal_names[signal_nxt_timestamp_min_val_idx]
                 del run_num_list[signal_nxt_timestamp_min_val_idx]
                 del signals_list[signal_nxt_timestamp_min_val_idx]
+                del nxt_time_neg_offset_per_sig_s_list[signal_nxt_timestamp_min_val_idx]
             debug_print(f"nxt_timestamp_per_sig_idx {nxt_timestamp_per_sig_idx}")
     print(f"\n{os.path.join(path, param_dict['VHD_DO_FILENAME'])} was written successfully!")
 
