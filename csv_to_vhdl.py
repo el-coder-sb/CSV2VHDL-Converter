@@ -254,7 +254,7 @@ def write_stimuli_file(path, all_ch_level_matrix, vhdl_signal_names, run_num_lis
                 else:
                     raise ValueError('RESOLUTION has an illegal value.')
                 dofile.write(f"\t{vhdl_signal_names[signal_nxt_timestamp_min_val_idx]}\t\t<=\t'{data_tuple[1]}';\n")
-                simulation_time_ns += int(wait_time_ps / 1000)
+                simulation_time_ns += round(wait_time_ps / 1000)
                 debug_print(f"simulation_time_ns: {simulation_time_ns}")
                 if simulation_time_ns > (param_dict['MAX_SIM_TIME_US'] * 1000):
                     print(f"BREAK as MAX_SIM_TIME_US is reached.")
