@@ -204,7 +204,8 @@ def write_stimuli_file(path, all_ch_level_matrix, vhdl_signal_names, run_num_lis
                     # check if for every run the next signal is of same type (don´t sync if e.g. next signal is run1=CLK and run2=MOSI)
                     debug_print(f"nxt_switching_signal_per_run_list: {nxt_switching_signal_per_run_list}")
                     if len(set(nxt_switching_signal_per_run_list)) == 1:
-                        debug_print("######### LOS! Mach SYNC")
+                        print("### Mach SYNC")
+                        print(f"simulation_time_ns: {simulation_time_ns}")
                         # ermittle Zeitdifferenz zwischen den Syncsignalen
                         for signal_idx, signal_type in enumerate(signals_list):
                             debug_print(f"signal_idx, signal_type: {signal_idx}, {signal_type}")
@@ -219,15 +220,17 @@ def write_stimuli_file(path, all_ch_level_matrix, vhdl_signal_names, run_num_lis
                                     for signal_idx_loop, run_num_loop in enumerate(run_num_list):
                                         if run_num_loop == run_num_list[signal_idx]:
                                             nxt_time_neg_offset_per_sig_s_list[signal_idx_loop] = neg_offset_this_run_in_s
+                                    print(f"nxt_time_neg_offset_per_sig_s_list: {nxt_time_neg_offset_per_sig_s_list}")
                                 else:
                                     debug_print(f"signal_type {signal_type} not matching.")
                             else:
                                 debug_print("do not sync if signal is in same run as signal_nxt_timestamp_min")
                     else:
                         debug_print(f"set(nxt_switching_signal_per_run_list) {set(nxt_switching_signal_per_run_list)}")
-                    debug_print(f"nxt_time_neg_offset_per_sig_s_list: {nxt_time_neg_offset_per_sig_s_list}")
                 else:
                     debug_print(f"wait_time_s {wait_time_s} < {3 * (1 / (min_freq_mhz * 1000000))} -> KEIN Sync")
+
+            # writing the file
             if file_extension == '.do':
                 if param_dict["RESOLUTION"] == "ns":
                     dofile.write(f"run {round(wait_time_ps/1000,0)}\n")  # convert diff to ns and round to ns
