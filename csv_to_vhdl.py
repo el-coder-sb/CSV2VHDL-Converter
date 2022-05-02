@@ -170,8 +170,9 @@ def write_stimuli_file(path, all_ch_level_matrix, vhdl_signal_names, run_num_lis
             data_tuple = all_ch_level_matrix[signal_nxt_timestamp_min_val_idx][nxt_timestamp_per_sig_idx[signal_nxt_timestamp_min_val_idx]]
 
             data_tuple[TIMESTAMP_IDX] -= nxt_time_neg_offset_per_sig_s_list[signal_nxt_timestamp_min_val_idx]
-
             debug_print(f"selected data_tuple: {data_tuple}")
+
+            # cut idle time to 'MAX_WAIT_TIME_NS'
             debug_print(f"last_timestamp: {last_timestamp}")
             wait_time_tmp_ps = round((data_tuple[TIMESTAMP_IDX] - last_timestamp) * 1000000000000, 0)
             wait_time_ps = min(wait_time_tmp_ps, (param_dict['MAX_WAIT_TIME_NS'] * 1000))
@@ -179,6 +180,7 @@ def write_stimuli_file(path, all_ch_level_matrix, vhdl_signal_names, run_num_lis
             if wait_time_tmp_ps > wait_time_ps:
                 print(f"wait_time_ps was greater than MAX_WAIT_TIME_NS: {wait_time_tmp_ps} ps -> is cutted to {wait_time_ps}ps")
 
+            # the sync stuff
             if do_sync is True:
                 nxt_switching_signal_per_run_list = [None for i in range(num_different_runs)]
                 wait_time_s = wait_time_ps / 1E+12
