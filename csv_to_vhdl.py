@@ -168,17 +168,12 @@ def write_stimuli_file(path, all_ch_level_matrix, vhdl_signal_names, run_num_lis
             signal_nxt_timestamp_min_val_idx = min(range(len(nxt_timestamp_list)), key=nxt_timestamp_list.__getitem__)  # signal_nxt_timestamp_min_val_idx = signal with the next min timestamp
             debug_print(f" signal_nxt_timestamp_min_val_idx {signal_nxt_timestamp_min_val_idx}")
             data_tuple = all_ch_level_matrix[signal_nxt_timestamp_min_val_idx][nxt_timestamp_per_sig_idx[signal_nxt_timestamp_min_val_idx]]
-
-            data_tuple[TIMESTAMP_IDX] -= nxt_time_neg_offset_per_sig_s_list[signal_nxt_timestamp_min_val_idx]
             debug_print(f"selected data_tuple: {data_tuple}")
-
-            # cut idle time to 'MAX_WAIT_TIME_NS'
+            data_tuple_tmp = data_tuple.copy()
+            data_tuple_tmp[TIMESTAMP_IDX] -= nxt_time_neg_offset_per_sig_s_list[signal_nxt_timestamp_min_val_idx]
             debug_print(f"last_timestamp: {last_timestamp}")
-            wait_time_tmp_ps = round((data_tuple[TIMESTAMP_IDX] - last_timestamp) * 1000000000000, 0)
+            wait_time_tmp_ps = round((data_tuple_tmp[TIMESTAMP_IDX] - last_timestamp) * 1000000000000, 0)
             wait_time_ps = min(wait_time_tmp_ps, (param_dict['MAX_WAIT_TIME_NS'] * 1000))
-            debug_print(f"wait_time_ps real: {wait_time_tmp_ps}; wait_time_ps used: {wait_time_ps}")
-            if wait_time_tmp_ps > wait_time_ps:
-                print(f"wait_time_ps was greater than MAX_WAIT_TIME_NS: {wait_time_tmp_ps} ps -> is cutted to {wait_time_ps}ps")
 
             # the sync stuff
             if do_sync is True:
@@ -208,6 +203,7 @@ def write_stimuli_file(path, all_ch_level_matrix, vhdl_signal_names, run_num_lis
                     if len(set(nxt_switching_signal_per_run_list)) == 1:
                         print("### Mach SYNC")
                         print(f"simulation_time_ns: {simulation_time_ns}")
+                        nxt_time_neg_offset_per_sig_s_tmp_list = [0 for i in range(len(vhdl_signal_names))]
                         # ermittle Zeitdifferenz zwischen den Syncsignalen
                         for signal_idx, signal_type in enumerate(signals_list):
                             debug_print(f"signal_idx, signal_type: {signal_idx}, {signal_type}")
@@ -215,22 +211,55 @@ def write_stimuli_file(path, all_ch_level_matrix, vhdl_signal_names, run_num_lis
                             if run_num_list[signal_idx] != run_num_list[signal_nxt_timestamp_min_val_idx]:  # do not sync if signal is in same run as signal_nxt_timestamp_min
                                 if signal_type == nxt_switching_signal_per_run_list[0]:
                                     debug_print(f"nxt_timestamp_list[signal_idx]: {nxt_timestamp_list[signal_idx]}")
-                                    time_delta_ps = round((nxt_timestamp_list[signal_idx] - data_tuple[TIMESTAMP_IDX]) * 1000000000000)
+                                    time_delta_ps = round((nxt_timestamp_list[signal_idx] - data_tuple_tmp[TIMESTAMP_IDX]) * 1000000000000)
                                     debug_print(f"time_delta_ps: {time_delta_ps}")
                                     neg_offset_this_run_in_s = time_delta_ps / 1e+12
                                     # speichere Zeitdifferenz als neg. Offset für nächsten Zeitstempel für alle Signale diesen Runs
                                     for signal_idx_loop, run_num_loop in enumerate(run_num_list):
                                         if run_num_loop == run_num_list[signal_idx]:
-                                            nxt_time_neg_offset_per_sig_s_list[signal_idx_loop] = neg_offset_this_run_in_s
-                                    print(f"nxt_time_neg_offset_per_sig_s_list: {nxt_time_neg_offset_per_sig_s_list}")
+                                            nxt_time_neg_offset_per_sig_s_tmp_list[signal_idx_loop] = neg_offset_this_run_in_s
+                                    print(f"nxt_time_neg_offset_per_sig_s_tmp_list: {nxt_time_neg_offset_per_sig_s_tmp_list}")
                                 else:
                                     debug_print(f"signal_type {signal_type} not matching.")
                             else:
                                 debug_print("do not sync if signal is in same run as signal_nxt_timestamp_min")
+
+                        # # reduce neg_offset to minimum
+                        # get min of nxt_time_neg_offset_per_sig_s_list
+                        if max(nxt_time_neg_offset_per_sig_s_tmp_list) == 0.0:
+                            print(f"nxt_time_neg_offset_per_sig_s_tmp_list only 0.0 values.")
+                        else:
+                            min_neg_offset = max(nxt_time_neg_offset_per_sig_s_tmp_list)  # abs min value
+                            for signal_idx, neg_offset in enumerate(nxt_time_neg_offset_per_sig_s_list):
+                                if neg_offset <= min_neg_offset:
+                                    if run_num_list[signal_idx] == run_num_list[signal_nxt_timestamp_min_val_idx]:  # do take min val only if signal is in same run as signal_nxt_timestamp_min
+                                        min_neg_offset = neg_offset
+                                        run_num_of_min = run_num_list[signal_idx]
+                            print(f"min_neg_offset: {min_neg_offset}")
+                            print(f"run_num_of_min: {run_num_of_min}")
+                            # go again trough the list and add the new neg_offset
+                            if max(nxt_time_neg_offset_per_sig_s_tmp_list) >= min_neg_offset:
+                                for signal_idx, neg_offset in enumerate(nxt_time_neg_offset_per_sig_s_list):
+                                    nxt_time_neg_offset_per_sig_s_list[signal_idx] += nxt_time_neg_offset_per_sig_s_tmp_list[signal_idx] - min_neg_offset
+                            else:
+                                for signal_idx, neg_offset in enumerate(nxt_time_neg_offset_per_sig_s_list):
+                                    if run_num_list[signal_idx] != run_num_list[signal_nxt_timestamp_min_val_idx]:  # do change val if signal is in same run as signal_nxt_timestamp_min
+                                        nxt_time_neg_offset_per_sig_s_list[signal_idx] += nxt_time_neg_offset_per_sig_s_tmp_list[signal_idx]
+                        print(f"nxt_time_neg_offset_per_sig_s_list: {nxt_time_neg_offset_per_sig_s_list}")
+
                     else:
                         debug_print(f"set(nxt_switching_signal_per_run_list) {set(nxt_switching_signal_per_run_list)}")
                 else:
                     debug_print(f"wait_time_s {wait_time_s} < {3 * (1 / (min_freq_mhz * 1000000))} -> KEIN Sync")
+
+            # cut idle time to 'MAX_WAIT_TIME_NS'
+            data_tuple[TIMESTAMP_IDX] -= nxt_time_neg_offset_per_sig_s_list[signal_nxt_timestamp_min_val_idx]
+            debug_print(f"data_tuple after sync: {data_tuple}")
+            wait_time_tmp_ps = round((data_tuple[TIMESTAMP_IDX] - last_timestamp) * 1000000000000, 0)
+            wait_time_ps = min(wait_time_tmp_ps, (param_dict['MAX_WAIT_TIME_NS'] * 1000))
+            debug_print(f"wait_time_ps real: {wait_time_tmp_ps}; wait_time_ps used: {wait_time_ps}")
+            if wait_time_tmp_ps > wait_time_ps:
+                print(f"wait_time_ps was greater than MAX_WAIT_TIME_NS: {wait_time_tmp_ps} ps -> is cutted to {wait_time_ps}ps")
 
             # writing the file
             if file_extension == '.do':
