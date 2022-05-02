@@ -75,6 +75,7 @@ def readCsv(filename, delimiter_arg=',', max_row=None):
     print(f"Read data from {filename} ")
     # matrix = [[] for i in range(numCol)] # for 2D list-array, matrix = [row][col], 0-based-index!
     matrix = []
+    matrix_append = matrix.append  # for runtime saving, s. https://towardsdatascience.com/10-techniques-to-speed-up-python-runtime-95e213e925dc
 
     with open(filename, 'r') as csvfile:
         filereader = csv.reader(csvfile, delimiter=delimiter_arg, quotechar='|')
@@ -83,9 +84,7 @@ def readCsv(filename, delimiter_arg=',', max_row=None):
             debug_print(row)
             if row_num == 0:
                 time_offset = float(row[0])  # depending on null line of osci there might be negative time values which have to be converted via the time_offset
-            matrix.append([])
-            for col_str in row:
-                matrix[row_num].append(float(col_str))
+            matrix_append(list(map(float, row)))  # add list with column values converted to float
             if max_row is not None and row_num == max_row:
                 break
     # print(f"Time_offset {time_offset}")
