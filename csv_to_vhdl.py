@@ -70,67 +70,60 @@ def get_header_info(header_str, device="RTB2004"):
         pass  # TODO
 
 
+def csv_num_rows(filename):
+    with open(filename, 'r') as csvfile:
+        return sum(1 for line in csvfile)
+
+
 @time_wrapper
 def readCsv(filename, delimiter_arg=',', max_row=None):
     print(f"Read data from {filename} ")
-    # matrix = [[] for i in range(numCol)] # for 2D list-array, matrix = [row][col], 0-based-index!
-    matrix = []
-    matrix_append = matrix.append  # for runtime saving, s. https://towardsdatascience.com/10-techniques-to-speed-up-python-runtime-95e213e925dc
 
     with open(filename, 'r') as csvfile:
         filereader = csv.reader(csvfile, delimiter=delimiter_arg, quotechar='|')
         header = next(filereader)
+        yield header
 
-        # read first line for offset seperately to fasten foor loop (saving one 'if' sequenz)
-        row = next(filereader)
+        # read first line for offset separately to fasten for loop (saving one 'if' sequence)
+        row = next(filereader)  # = time_logiclevel_tuple
         debug_print(row)
         time_offset = float(row[0])  # depending on null line of osci there might be negative time values which have to be converted via the time_offset
-        matrix_append(list(map(float, row)))  # add list with column values converted to float
+        yield time_offset
+
+        yield list(map(float, row))  # return list with column values converted to float
 
         # read all further rows     -> put `if max_row is not None` outside of for-loop to fasten loop
         if max_row is not None:
             for row_num, row in enumerate(filereader, start=1):
                 # debug_print(row)
-                matrix_append(list(map(float, row)))  # add list with column values converted to float
+                yield(list(map(float, row)))  # return list with column values converted to float
                 if row_num >= max_row :
                     break
         else:
             for row_num, row in enumerate(filereader, start=1):
-                matrix_append(list(map(float, row)))  # add list with column values converted to float
-            # matrix_append([list(map(float, row) for row in filereader)])  # add list with column values converted to float
-    # print(f"Time_offset {time_offset}")
-    return header, time_offset, matrix  # 0-based-index, matrix[row][col]
+                yield(list(map(float, row)))  # return list with column values converted to float
 
 
-@time_wrapper
-def get_edges(time_offset, csvMatrix, logic_family=3.3, positive_going_voltage=2.0, negative_going_voltage=0.8, ignore_time_ns=0, max_sim_time_us=100000, max_freq_mhz=2000):
+def get_edges(time_offset, time_logiclevel_tuple, last_level, logic_family=3.3, positive_going_voltage=2.0, negative_going_voltage=0.8, ignore_time_ns=0):
     ''' Find digital level transitions in input data '''
-    last_level = 0 if csvMatrix[0][1] < 0.5 * logic_family else 1
-    level_matrix = [[0.0, last_level]]
-    level_transition_cnt = 0
 
-    for time_logiclevel_tuple in csvMatrix:
+    # check voltage level
+    voltage_fl = time_logiclevel_tuple[1]
+    timestamp = time_logiclevel_tuple[0] + abs(time_offset) - (ignore_time_ns / 1e9)
 
-        # check voltage level
-        voltage_fl = time_logiclevel_tuple[1]
-        timestamp = time_logiclevel_tuple[0] + abs(time_offset) - (ignore_time_ns / 1e9)
-        if timestamp <= 0:
-            continue
+    if timestamp <= 0:
+        return None  # negative because of ignore_time_ns => ignore if negative
 
-        # use hysterese
-        if last_level == 0 and (voltage_fl > positive_going_voltage):
-                last_level = 1
-                level_matrix.append([timestamp, last_level])
-                level_transition_cnt += 1
-        elif last_level == 1 and (voltage_fl < negative_going_voltage):
-                last_level = 0
-                level_matrix.append([timestamp, last_level])
-                level_transition_cnt += 1
+    # use hysterese
+    if last_level == 0 and (voltage_fl > positive_going_voltage):
+            last_level = 1
+            return ([timestamp, last_level])
 
-        if level_transition_cnt > (max_sim_time_us * max_freq_mhz):  # break to shorten runtime;
-            print(f"in get_edges(): Break because of level_transition_cnt reached {level_transition_cnt} > max_sim_time_us * max_freq_mhz")
-            break
-    return level_matrix
+    elif last_level == 1 and (voltage_fl < negative_going_voltage):
+            last_level = 0
+            return([timestamp, last_level])
+
+    return None
 
 
 @time_wrapper
@@ -316,7 +309,7 @@ def write_stimuli_file(path, all_ch_level_matrix, vhdl_signal_names, run_num_lis
 
 @time_wrapper
 def get_and_prepare_csv_data(input_dict_list, param_dict):
-    ''' Read csv file(s) and create Matrix/Table from content'''
+    ''' Read all csv file(s) and create Matrix/Table from content'''
 
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -324,6 +317,7 @@ def get_and_prepare_csv_data(input_dict_list, param_dict):
     future_list = []
     csv_filepaths = [dict_elem['filepath'] for dict_elem in input_dict_list]
 
+    # read and process all csv files
     with ThreadPoolExecutor(max_workers=2) as executor:
         for file_num, csv_filepath in enumerate(csv_filepaths):
             level_matrix = executor.submit(read_csv_and_get_edges, csv_filepath, file_num, input_dict_list, param_dict)
@@ -337,18 +331,36 @@ def get_and_prepare_csv_data(input_dict_list, param_dict):
 
 
 def read_csv_and_get_edges(csv_filepath, file_num, input_dict_list, param_dict):
-    header_str, time_offset, csvMatrix = readCsv(csv_filepath, param_dict['CSV_Delimiter'], param_dict["maxDataRows"])
-    print(f"Num of rows: {len(csvMatrix)}")
+
+    readcsv_generator = readCsv(csv_filepath, param_dict['CSV_Delimiter'], param_dict["maxDataRows"])
+
+    header_str = next(readcsv_generator)
+    time_offset = next(readcsv_generator)
+
     get_header_info(header_str)  # ZUTUN
-    level_matrix = get_edges(time_offset,
-                             csvMatrix,
-                             input_dict_list[file_num]['logic_family'],
-                             input_dict_list[file_num]['POSITIVE_GOING_VOLTAGE'],
-                             input_dict_list[file_num]['NEGATIVE_GOING_VOLTAGE'],
-                             input_dict_list[file_num]['ignore_time_ns'],
-                             param_dict['MAX_SIM_TIME_US'],
-                             param_dict['MAX_FREQ_MHZ'])
-    debug_print(level_matrix)
+
+    row1 = next(readcsv_generator)
+    last_level = 0  if row1[1] < 0.5 * input_dict_list[file_num]['logic_family'] else 1
+    level_matrix = [[0.0, last_level]]
+    level_transition_cnt = 0
+
+    for row in readcsv_generator:
+        get_edges_return = get_edges(time_offset,
+                                             row,
+                                             last_level,
+                                             input_dict_list[file_num]['logic_family'],
+                                             input_dict_list[file_num]['POSITIVE_GOING_VOLTAGE'],
+                                             input_dict_list[file_num]['NEGATIVE_GOING_VOLTAGE'],
+                                             input_dict_list[file_num]['ignore_time_ns'])
+        if get_edges_return is not None:
+            last_level = get_edges_return[1]
+            level_matrix.append(get_edges_return)
+            debug_print(level_matrix)
+            level_transition_cnt += 1
+        if level_transition_cnt > (param_dict['MAX_SIM_TIME_US'] * param_dict['MAX_FREQ_MHZ']):  # break to shorten runtime;
+            print(f"in get_edges(): Break because of level_transition_cnt reached {level_transition_cnt} > max_sim_time_us * max_freq_mhz")
+            break
+    print(f"{os.path.basename(csv_filepath)} num of rows: {len(level_matrix)}\n")
     return level_matrix
 
 
