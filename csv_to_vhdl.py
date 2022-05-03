@@ -317,26 +317,39 @@ def write_stimuli_file(path, all_ch_level_matrix, vhdl_signal_names, run_num_lis
 @time_wrapper
 def get_and_prepare_csv_data(input_dict_list, param_dict):
     ''' Read csv file(s) and create Matrix/Table from content'''
+
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
     all_ch_level_matrix = []
+    future_list = []
     csv_filepaths = [dict_elem['filepath'] for dict_elem in input_dict_list]
 
-    for file_num, csv_filepath in enumerate(csv_filepaths):
-        header_str, time_offset, csvMatrix = readCsv(csv_filepath, param_dict['CSV_Delimiter'], param_dict["maxDataRows"])
-        print(f"Num of rows: {len(csvMatrix)}")
-        get_header_info(header_str)  # ZUTUN
-        level_matrix = get_edges(time_offset,
-                                 csvMatrix,
-                                 input_dict_list[file_num]['logic_family'],
-                                 input_dict_list[file_num]['POSITIVE_GOING_VOLTAGE'],
-                                 input_dict_list[file_num]['NEGATIVE_GOING_VOLTAGE'],
-                                 input_dict_list[file_num]['ignore_time_ns'],
-                                 param_dict['MAX_SIM_TIME_US'],
-                                 param_dict['MAX_FREQ_MHZ'])
-        debug_print(level_matrix)
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        for file_num, csv_filepath in enumerate(csv_filepaths):
+            level_matrix = executor.submit(read_csv_and_get_edges, csv_filepath, file_num, input_dict_list, param_dict)
+            future_list.append(level_matrix)
+#             all_ch_level_matrix.append(level_matrix)
 
-        all_ch_level_matrix.append(level_matrix)
+    for f in future_list:
+        all_ch_level_matrix.append(f.result())
 
     return all_ch_level_matrix
+
+
+def read_csv_and_get_edges(csv_filepath, file_num, input_dict_list, param_dict):
+    header_str, time_offset, csvMatrix = readCsv(csv_filepath, param_dict['CSV_Delimiter'], param_dict["maxDataRows"])
+    print(f"Num of rows: {len(csvMatrix)}")
+    get_header_info(header_str)  # ZUTUN
+    level_matrix = get_edges(time_offset,
+                             csvMatrix,
+                             input_dict_list[file_num]['logic_family'],
+                             input_dict_list[file_num]['POSITIVE_GOING_VOLTAGE'],
+                             input_dict_list[file_num]['NEGATIVE_GOING_VOLTAGE'],
+                             input_dict_list[file_num]['ignore_time_ns'],
+                             param_dict['MAX_SIM_TIME_US'],
+                             param_dict['MAX_FREQ_MHZ'])
+    debug_print(level_matrix)
+    return level_matrix
 
 
 def run_csv_to_do_main(input_dict_list, param_dict):
