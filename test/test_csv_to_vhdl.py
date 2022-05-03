@@ -46,16 +46,51 @@ PARAM_DICT = {
 class Test_CSV_TO_VHDL(unittest.TestCase):
 
     def test_readCsv(self):
-        print(f"\n{sys._getframe().f_code.co_name}()")
-        # simple
-        header, time_offset, matrix = csv_to_vhdl.readCsv("test_csv_to_vhdl_input_RTB2004_CHAN1.CSV", delimiter_arg=',', max_row=3)
+        print(f"\n +++ {sys._getframe().f_code.co_name}() +++")
+
+        # # simple w/o max_row
+        print(f"\n\tsimple w/o max_row")
+
+        # readCsv() is a generator function!
+        read_csv_row_generator = csv_to_vhdl.readCsv("test_csv_to_vhdl_input_RTB2004_CHAN1.CSV", delimiter_arg=',')
+
+        header = next(read_csv_row_generator)
+        time_offset = next(read_csv_row_generator)
+
+        matrix = []
+        for row in read_csv_row_generator:
+            matrix.append(row)
+
+        self.assertEqual(header, ['in s', 'C1 in V'])
+        self.assertEqual(time_offset, -2e-07)
+        self.assertEqual(matrix[:54], [[-2e-07, 3.36426], [-1.992e-07, 3.33496], [-1.984e-07, 3.40332], [-1.976e-07, 3.40332], [-1.968e-07, 3.38379], [-1.96e-07, 3.36426],
+                                  [-1.952e-07, 3.37402], [-1.944e-07, 3.37402], [-1.936e-07, 3.36426], [-1.928e-07, 3.36426], [-1.92e-07, 3.40332], [-1.912e-07, 3.39355],
+                                  [-1.904e-07, 3.37402], [-1.896e-07, 3.36426], [-1.888e-07, 3.39355], [-1.88e-07, 3.35449], [-1.872e-07, 3.36426], [-1.864e-07, 3.37402],
+                                  [-1.856e-07, 3.37402], [-1.848e-07, 3.39355], [-1.84e-07, 3.37402], [-1.832e-07, 3.39355], [-1.824e-07, 3.39355], [-1.816e-07, 3.40332],
+                                  [-1.808e-07, 3.36426], [-1.8e-07, 3.36426], [-1.792e-07, 3.39355], [-1.784e-07, 3.36426], [-1.776e-07, 3.37402], [-1.768e-07, 3.37402],
+                                  [-1.76e-07, 3.37402], [-1.752e-07, 3.38379], [-1.744e-07, 3.36426], [-1.736e-07, 3.38379], [-1.728e-07, 3.41309], [-1.72e-07, 3.38379],
+                                  [-1.712e-07, 3.36426], [-1.704e-07, 3.42285], [-1.696e-07, 3.41309], [-1.688e-07, 3.39355], [-1.68e-07, 3.37402], [-1.672e-07, 3.36426],
+                                  [-1.664e-07, 3.40332], [-1.656e-07, 3.36426], [-1.648e-07, 3.36426], [-1.64e-07, 3.38379], [-1.632e-07, 3.36426], [-1.624e-07, 3.40332],
+                                  [-1.616e-07, 3.39355], [-1.608e-07, 3.34473], [-1.6e-07, 3.37402], [-1.592e-07, 3.40332], [-1.584e-07, 3.37402], [-1.576e-07, 3.41309]])
+
+        # # simple with max_row
+        print(f"\n\tsimple with max_row")
+        # readCsv() is a generator function!
+        read_csv_row_generator = csv_to_vhdl.readCsv("test_csv_to_vhdl_input_RTB2004_CHAN1.CSV", delimiter_arg=',', max_row=3)
+
+        header = next(read_csv_row_generator)
+        time_offset = next(read_csv_row_generator)
+
+        matrix = []
+        for row in read_csv_row_generator:
+            matrix.append(row)
 
         self.assertEqual(header, ['in s', 'C1 in V'])
         self.assertEqual(time_offset, -2e-07)
         self.assertEqual(matrix, [[-2e-07, 3.36426], [-1.992e-07, 3.33496], [-1.984e-07, 3.40332], [-1.976e-07, 3.40332]])
 
     def test_get_edges(self):
-        print(f"\n{sys._getframe().f_code.co_name}()")
+        print(f"\n +++ {sys._getframe().f_code.co_name}() +++")
         input_matrix = [[-3.9990000E-03, 3.32520E+00],
                         [-3.9989992E-03, 3.34473E+00],
                         [-3.9989984E-03, 3.35449E+00],
@@ -69,14 +104,37 @@ class Test_CSV_TO_VHDL(unittest.TestCase):
                         [-3.9989920E-03, 3.34473E+00],
                         [-3.9989912E-03, 3.36426E+00]]
 
-        level_matrix = csv_to_vhdl.get_edges(time_offset=input_matrix[0][0], csvMatrix=input_matrix, logic_family=3.3, positive_going_voltage=2.0, negative_going_voltage=0.8)
+        # # simple w/o ignores time
+
+        # read ro1 outside of for loop as this inits some variables
+        logic_family = 3.3  # V
+        last_level = 0  if input_matrix[0][1] < 0.5 * logic_family else 1
+        level_matrix = [[0.0, last_level]]
+
+        for input in input_matrix:
+           detected_edge = csv_to_vhdl.get_edges(input_matrix[0][0], input, last_level, logic_family=3.3, positive_going_voltage=2.0, negative_going_voltage=0.8, ignore_time_ns=0)
+
+           if detected_edge is not None:
+            last_level = detected_edge[1]
+            level_matrix.append(detected_edge)
+
         self.assertEqual(level_matrix, [[0.0, 1], [3.9999999996293e-09, 0], [6.3999999995803525e-09, 1]])
 
-        level_matrix = csv_to_vhdl.get_edges(time_offset=input_matrix[0][0], csvMatrix=input_matrix, logic_family=3.3, positive_going_voltage=2.0, negative_going_voltage=0.8, ignore_time_ns=2)
+        # # simple with ignores time
+
+        last_level = 0  if input_matrix[0][1] < 0.5 * logic_family else 1
+        level_matrix = [[0.0, last_level]]
+
+        for input in input_matrix:
+           detected_edge = csv_to_vhdl.get_edges(input_matrix[0][0], input, last_level, logic_family=3.3, positive_going_voltage=2.0, negative_going_voltage=0.8, ignore_time_ns=2)
+
+           if detected_edge is not None:
+            last_level = detected_edge[1]
+            level_matrix.append(detected_edge)
         self.assertEqual(level_matrix, [[0.0, 1], [1.9999999996293e-09, 0], [4.399999999580353e-09, 1]])
 
     def test_get_and_prepare_csv_data(self):
-        print(f"\n{sys._getframe().f_code.co_name}()")
+        print(f"\n +++ {sys._getframe().f_code.co_name}() +++")
         all_ch_level_matrix = csv_to_vhdl.get_and_prepare_csv_data(INPUT_DICT_LIST, PARAM_DICT)
         self.assertEqual(all_ch_level_matrix, [[[0.0, 1],
                                                 [9.903999999999999e-07, 0],
@@ -98,7 +156,7 @@ class Test_CSV_TO_VHDL(unittest.TestCase):
                                                 [2.2752e-06, 0]]])
 
     def test_write_stimuli_file_simple(self):
-        print(f"\n{sys._getframe().f_code.co_name}()")
+        print(f"\n +++ {sys._getframe().f_code.co_name}() +++")
         import difflib
         all_ch_level_matrix = [[[0.0, 1],
                                 [9.903999999999999e-07, 0],
@@ -138,7 +196,7 @@ class Test_CSV_TO_VHDL(unittest.TestCase):
             self.assertTrue(False)
 
     def test_write_stimuli_file_sync(self):
-        print(f"\n{sys._getframe().f_code.co_name}()")
+        print(f"\n +++ {sys._getframe().f_code.co_name}() +++")
         import difflib
         print(f"\n\n+++++++++++++++++++++++++++++++++ test_write_stimuli_file_sync\n+++++++++++++++++++++++++++++++++")
         param_dict_local = {
@@ -196,7 +254,7 @@ class Test_CSV_TO_VHDL(unittest.TestCase):
             self.assertTrue(False)
 
     def test_csv_to_vhdl_all(self):
-        print(f"\n{sys._getframe().f_code.co_name}()\n")
+        print(f"\n +++ {sys._getframe().f_code.co_name}() +++")
         this_path = os.path.dirname(os.path.abspath(__file__))
         input_file = "test_tb_gen_input.vhd"
         sys.argv.append(os.path.join(this_path, input_file))
@@ -220,6 +278,10 @@ class Test_CSV_TO_VHDL(unittest.TestCase):
 if __name__ == '__main__':
     unittest.main()
 #     test_suite = Test_CSV_TO_VHDL()
+#     test_suite.test_readCsv()
+#     test_suite.test_get_edges()
+#     test_suite.test_write_stimuli_file_simple()
 #     test_suite.test_write_stimuli_file_sync()
+#     test_suite.test_csv_to_vhdl_all()
 #     test_suite.test_readCsv()
 
