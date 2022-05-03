@@ -221,4 +221,5 @@ if __name__ == '__main__':
     unittest.main()
 #     test_suite = Test_CSV_TO_VHDL()
 #     test_suite.test_write_stimuli_file_sync()
+#     test_suite.test_readCsv()
 

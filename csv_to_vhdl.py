@@ -80,13 +80,24 @@ def readCsv(filename, delimiter_arg=',', max_row=None):
     with open(filename, 'r') as csvfile:
         filereader = csv.reader(csvfile, delimiter=delimiter_arg, quotechar='|')
         header = next(filereader)
-        for row_num, row in enumerate(filereader):
-            debug_print(row)
-            if row_num == 0:
-                time_offset = float(row[0])  # depending on null line of osci there might be negative time values which have to be converted via the time_offset
-            matrix_append(list(map(float, row)))  # add list with column values converted to float
-            if max_row is not None and row_num == max_row:
-                break
+
+        # read first line for offset seperately to fasten foor loop (saving one 'if' sequenz)
+        row = next(filereader)
+        debug_print(row)
+        time_offset = float(row[0])  # depending on null line of osci there might be negative time values which have to be converted via the time_offset
+        matrix_append(list(map(float, row)))  # add list with column values converted to float
+
+        # read all further rows     -> put `if max_row is not None` outside of for-loop to fasten loop
+        if max_row is not None:
+            for row_num, row in enumerate(filereader, start=1):
+                # debug_print(row)
+                matrix_append(list(map(float, row)))  # add list with column values converted to float
+                if row_num >= max_row :
+                    break
+        else:
+            for row_num, row in enumerate(filereader, start=1):
+                matrix_append(list(map(float, row)))  # add list with column values converted to float
+            # matrix_append([list(map(float, row) for row in filereader)])  # add list with column values converted to float
     # print(f"Time_offset {time_offset}")
     return header, time_offset, matrix  # 0-based-index, matrix[row][col]
 
