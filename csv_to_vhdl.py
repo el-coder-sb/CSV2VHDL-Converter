@@ -107,14 +107,14 @@ def readCsv(filename, delimiter_arg=',', max_row=None):
 def get_edges(time_offset, time_logiclevel_tuple, last_level, logic_family=3.3, positive_going_voltage=2.0, negative_going_voltage=0.8, ignore_time_ns=0):
     ''' Find digital level transitions in input data '''
 
-    # check voltage level
-    voltage_fl = time_logiclevel_tuple[1]
+    # check timestamp
     timestamp = time_logiclevel_tuple[0] + abs(time_offset) - (ignore_time_ns / 1e9)
-
     if timestamp <= 0:
         return None  # negative because of ignore_time_ns => ignore if negative
 
-    # use hysterese
+    # check voltage level using hysterese
+    voltage_fl = time_logiclevel_tuple[1]
+
     if last_level == 0 and (voltage_fl > positive_going_voltage):
             last_level = 1
             return ([timestamp, last_level])
@@ -317,12 +317,11 @@ def get_and_prepare_csv_data(input_dict_list, param_dict):
     future_list = []
     csv_filepaths = [dict_elem['filepath'] for dict_elem in input_dict_list]
 
-    # read and process all csv files
+    # read and process all csv files (parallel)
     with ThreadPoolExecutor(max_workers=2) as executor:
         for file_num, csv_filepath in enumerate(csv_filepaths):
             level_matrix = executor.submit(read_csv_and_get_edges, csv_filepath, file_num, input_dict_list, param_dict)
             future_list.append(level_matrix)
-#             all_ch_level_matrix.append(level_matrix)
 
     for f in future_list:
         all_ch_level_matrix.append(f.result())
@@ -332,35 +331,40 @@ def get_and_prepare_csv_data(input_dict_list, param_dict):
 
 def read_csv_and_get_edges(csv_filepath, file_num, input_dict_list, param_dict):
 
-    readcsv_generator = readCsv(csv_filepath, param_dict['CSV_Delimiter'], param_dict["maxDataRows"])
+    # compare transitions instead of sim_time as sim_time can be altered by use of 'MAX_WAIT_TIME_NS'
+    max_transitions = param_dict['MAX_SIM_TIME_US'] * param_dict['MAX_FREQ_MHZ']
 
-    header_str = next(readcsv_generator)
-    time_offset = next(readcsv_generator)
+    read_csv_row_generator = readCsv(csv_filepath, param_dict['CSV_Delimiter'], param_dict["maxDataRows"])
+
+    header_str = next(read_csv_row_generator)
+    time_offset = next(read_csv_row_generator)
 
     get_header_info(header_str)  # ZUTUN
 
-    row1 = next(readcsv_generator)
+    # read ro1 outside of for loop as this inits some variables
+    row1 = next(read_csv_row_generator)
     last_level = 0  if row1[1] < 0.5 * input_dict_list[file_num]['logic_family'] else 1
     level_matrix = [[0.0, last_level]]
     level_transition_cnt = 0
 
-    for row in readcsv_generator:
-        get_edges_return = get_edges(time_offset,
+    # go through all the rows of the csv file
+    for row in read_csv_row_generator:
+        detected_edge = get_edges(time_offset,
                                              row,
                                              last_level,
                                              input_dict_list[file_num]['logic_family'],
                                              input_dict_list[file_num]['POSITIVE_GOING_VOLTAGE'],
                                              input_dict_list[file_num]['NEGATIVE_GOING_VOLTAGE'],
                                              input_dict_list[file_num]['ignore_time_ns'])
-        if get_edges_return is not None:
-            last_level = get_edges_return[1]
-            level_matrix.append(get_edges_return)
+        if detected_edge is not None:
+            last_level = detected_edge[1]
+            level_matrix.append(detected_edge)
             debug_print(level_matrix)
             level_transition_cnt += 1
-        if level_transition_cnt > (param_dict['MAX_SIM_TIME_US'] * param_dict['MAX_FREQ_MHZ']):  # break to shorten runtime;
-            print(f"in get_edges(): Break because of level_transition_cnt reached {level_transition_cnt} > max_sim_time_us * max_freq_mhz")
-            break
-    print(f"{os.path.basename(csv_filepath)} num of rows: {len(level_matrix)}\n")
+            if level_transition_cnt > max_transitions:  # break to shorten runtime;
+                print(f"in read_csv_and_get_edges(): Break because of level_transition_cnt reached {level_transition_cnt} > max_sim_time_us * max_freq_mhz")
+                break
+    print(f"{os.path.basename(csv_filepath)} num of read rows: {len(level_matrix)}\n")
     return level_matrix
 
 
