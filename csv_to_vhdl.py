@@ -40,7 +40,7 @@ import os
 import math
 import time
 
-TEST_MODE = True  # False
+TEST_MODE = False  # boolean: True, False
 
 
 def debug_print(str_to_print):
@@ -58,7 +58,7 @@ def time_wrapper(func):  # accepts all arguments
 
         # calculate execution time is seconds (if t > 0), else in ms
         _exce_time = f"{(end - start):0.2f} s" if int(end - start) > 0 else f"{(end - start)*1e3:0.2f} ms"
-        print(f"Runtime '{func.__name__}': {_exce_time}")
+        print(f"\t\t\t\t\t\t\t\t\tRuntime '{func.__name__}': {_exce_time}")
         return _return
 
     return _wrapper
@@ -349,7 +349,7 @@ if __name__ == '__main__':
         'RESOLUTION': "ns",  # legal values: "ns", "ps"
         'VHD_DO_FILENAME': "my_decoded_file.vhd",  # legal extensions: ".do", ".vhd" -> vhdl is recommended due to much shorter simulation time
         'MAX_WAIT_TIME_NS': 10000,  # just to shorten simulation time
-        'MAX_SIM_TIME_US': 20,  # if just up to this time limit simulation is wanted, counts time with MAX_WAIT_TIMES_NS and not real IDLE-times
+        'MAX_SIM_TIME_US': 2000,  # if just up to this time limit simulation is wanted, counts time with MAX_WAIT_TIMES_NS and not real IDLE-times
         'MAX_FREQ_MHZ': 200,  # currently only used to calc break because of MAX_SIM_TIME_US to shorten runtime,
                                 # either the maximum possible frequency of the oscilloscope or the maximum expected signal frequency
         'DO_SYNC': True,
@@ -368,10 +368,10 @@ if __name__ == '__main__':
         #  'POSITIVE_GOING_VOLTAGE': in V, "NEGATIVE_GOING_VOLTAGE": in V, 'logic_family' in V
         #  'ignore_time_ns' typischerweise aus ModelSim-Wave ablesen
         #  'IS_CLK', 'RUN_NUM' and 'CLK_FREQ_MHZ' only used for sync
-        input_dict1 = dict({'filepath': r"RTA4004_CH1_CLK_01.CSV", 'vhdl_signal_name': 'spi_clk_stimu01_sl_s', 'ignore_time_ns': 10608}, ** default_input_dict)
-        input_dict2 = dict({'filepath': r"RTA4004_CH4_MOSI_01.CSV", 'vhdl_signal_name': 'spi_mosi_stimu01_sl_s', 'ignore_time_ns': 10608}, ** default_input_dict)
-        input_dict3 = dict({'filepath': r"RTA4004_CH1_CLK_02.CSV", 'vhdl_signal_name': 'spi_clk_stimu02_sl_s', 'ignore_time_ns': 0}, ** default_input_dict)
-        input_dict4 = dict({'filepath': r"RTA4004_CH4_MOSI_02.CSV", 'vhdl_signal_name': 'spi_mosi_stimu02_sl_s', 'ignore_time_ns': 0}, ** default_input_dict)
+        input_dict1 = dict({'filepath': r"RTA4004_CH1_CLK_01.CSV", 'vhdl_signal_name': 'spi_clk_stimu01_sl_s', 'signal': 'CLK', 'RUN_NUM': 1, 'ignore_time_ns': 10608}, ** default_input_dict)  # concat dicts
+        input_dict2 = dict({'filepath': r"RTA4004_CH4_MOSI_01.CSV", 'vhdl_signal_name': 'spi_mosi_stimu01_sl_s', 'signal': 'MOSI', 'RUN_NUM': 1, 'ignore_time_ns': 10608}, ** default_input_dict)
+        input_dict3 = dict({'filepath': r"RTA4004_CH1_CLK_02.CSV", 'vhdl_signal_name': 'spi_clk_stimu02_sl_s', 'signal': 'CLK', 'RUN_NUM': 2, 'ignore_time_ns': 0}, ** default_input_dict)
+        input_dict4 = dict({'filepath': r"RTA4004_CH4_MOSI_02.CSV", 'vhdl_signal_name': 'spi_mosi_stimu02_sl_s', 'signal': 'MOSI', 'RUN_NUM': 2, 'ignore_time_ns': 0}, ** default_input_dict)
         input_dict_list = [input_dict1, input_dict2, input_dict3, input_dict4]
 
     starttime = datetime.datetime.now()
