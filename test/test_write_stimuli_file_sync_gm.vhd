@@ -17,7 +17,7 @@
 	wait for   0.0 ns;		spi_clk_stimu01_sl_s		<=	'0';
 	wait for   0.0 ns;		spi_mosi_stimu01_sl_s		<=	'0';
 	wait for   0.0 ns;		spi_mosi_stimu02_sl_s		<=	'0';
-	wait for 8000.0 ns;		spi_clk_stimu01_sl_s		<=	'1';
-	wait for   0.0 ns;		spi_mosi_stimu01_sl_s		<=	'1';
-	wait for   0.0 ns;		spi_clk_stimu02_sl_s		<=	'1';
+	wait for 8000.0 ns;		spi_clk_stimu02_sl_s		<=	'1';
+	wait for   0.0 ns;		spi_clk_stimu01_sl_s		<=	'1';
 	wait for   0.0 ns;		spi_mosi_stimu02_sl_s		<=	'1';
+	wait for  10.0 ns;		spi_mosi_stimu01_sl_s		<=	'1';
